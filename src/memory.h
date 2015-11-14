@@ -6,7 +6,10 @@
 #define ADDR_W  (16)
 #define MEM_SIZE    (1 << ADDR_W)
 #define MEM_MASK    (MEM_SIZE - 1)
-
+#define RESET_VECTOR_ADDR   (0xFFFE)
+#define MASK(type)   ( (1 << (sizeof(type) * 8)) - 1)
+#define H(addr)     ((word_t)(((addr) & 0xFF00) >> 8))
+#define L(addr)     ((addr) & 0x00FF)
 
 #if ADDR_W == 8
 typedef uint8_t addr_t;
@@ -51,6 +54,7 @@ void write_byte(addr_t addr, byte data)
 	//printf("mem[addr & MEM_MASK] : %x \n", mem[addr & MEM_MASK]);
 }
 
+int load_mem(addr_t start_addr, const char* filename);
 
 
 #endif

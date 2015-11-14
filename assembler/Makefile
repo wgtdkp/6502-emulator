@@ -1,8 +1,9 @@
 CFLAGS = -Wall
-SRCS = cpu6502.c fc.c memory.c debug.c instruction.c
+SRCS = instruction.c parser.c main.c token.c ../src/utility.c
 
-TARGET = fc
+TARGET = asmer
 
+OBJS_DIR = build/
 OBJS = $(SRCS:.c=.o)
 
 CC = gcc
@@ -10,7 +11,7 @@ CC = gcc
 $(TARGET) : $(OBJS)
 	$(CC) -o $@ $^ -lm
 
-INC = -I./inc
+INC = -I./inc -I../src
 
 %.o : %.c
 	$(CC) $(CFLAGS) $(INC) -o $@ -c $<

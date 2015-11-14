@@ -15,4 +15,17 @@ typedef long long int64_t;
 typedef unsigned long long uint64_t;
 
 
+#define WORD_SIZE   (8)
+
+#if WORD_SIZE == 8
+typedef uint8_t word_t;
+#elif WORD_SIZE == 16
+typedef uint16_t word_t;
+#elif WORD_SIZE == 32
+typedef uint32_t word_t;
+#elif WORD_SIZE == 64
+typedef uint64_t word_t;
+#endif
+
+
 #endif
