@@ -52,5 +52,4 @@ void write_byte(addr_t addr, byte data)
 }
 
 
-
 #endif
