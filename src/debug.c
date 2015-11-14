@@ -35,26 +35,13 @@ int main(void)
 {
 	int argc = 2;
 	char* argv[2] = {"fc", "test.hex"};
-    char *filename;
     const addr_t start_addr = 0x8000;
-    addr_t addr;
-    FILE* file;
     if (argc < 2) {
         usage();
         return -1;
     }
 
-    filename = argv[1];
-    file = fopen(filename, "rb");
-    for (addr = start_addr; ; addr++) {
-        uint32_t buffer;
-        if(1 != fscanf(file, "%x", &buffer))
-            break;
-        write_byte(addr, buffer & MASK(word_t));
-        printf("addr: %4x,  %2x\n", addr, read_byte(addr));
-    }
-    write_byte(RESET_VECTOR_ADDR, L(start_addr));
-    write_byte(RESET_VECTOR_ADDR + 1, H(start_addr));
+    load_mem(start_addr, argv[1]);
 
     //print_cpu(&cpu6502);
     cpu6502_run(&cpu6502, mem);
