@@ -1,5 +1,5 @@
 CFLAGS = -Wall
-SRCS = instruction.c parser.c main.c token.c ../src/utility.c
+SRCS = instruction.c parser.c main.c token.c utility.c symbol.c
 
 TARGET = asmer
 

@@ -277,8 +277,6 @@
 /******TYA******/
 #define TYA     (0x98)
 
-
-
 #define IS_SIZE (256)
 
 

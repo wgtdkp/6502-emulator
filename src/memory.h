@@ -29,8 +29,7 @@ typedef byte mem_t;
 
 extern mem_t mem[MEM_SIZE];
 
-static inline 
-uint16_t read_2byte(addr_t addr)
+static inline uint16_t read_2byte(addr_t addr)
 {
     uint16_t data;
     data = mem[addr & MEM_MASK];

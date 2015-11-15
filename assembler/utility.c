@@ -1,6 +1,7 @@
 #include "utility.h"
+#include <stdarg.h>
 
-int error(const char* fmt, ..)
+int error(const char* fmt, ...)
 {
     int cnt = 0;
     va_list arg;

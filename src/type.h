@@ -3,6 +3,14 @@
 
 #define _DEBUG_
 
+#ifdef WIN32
+#define inline __inline
+#endif
+
+#define true    (1)
+#define false   (0)
+
+typedef unsigned char bool;
 typedef unsigned char byte;
 
 typedef char int8_t;

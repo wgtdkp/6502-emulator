@@ -1,7 +1,10 @@
 #include "main.h"
 #include "parser.h"
 
-int main(void)
+int main(int args, char* argv[])
 {
-    return 0;
+	if (args < 2)
+		return -1;
+	int err = parse("test.hex", argv[1]);
+    return err;
 }

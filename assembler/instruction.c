@@ -1,4 +1,6 @@
 #include "instruction.h"
+#include "token.h"
+
 
 const struct inst is[IS_SIZE] = {
 /*********ADC*********/
