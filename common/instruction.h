@@ -2,6 +2,7 @@
 #define _INSTRUCTION_H_
 
 #include "type.h"
+#include <stdint.h>
 
 #define PSW_C   (0)
 #define PSW_Z   (1)
@@ -276,8 +277,6 @@
 
 /******TYA******/
 #define TYA     (0x98)
-
-
 
 #define IS_SIZE (256)
 

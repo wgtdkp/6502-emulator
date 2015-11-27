@@ -14,11 +14,14 @@
                     || IS_NUM(ch))
 
 #define IS_NUM(ch)      ('0' <= (ch) && '9' >= (ch))
-#define IS_LETTER(ch)   ('A' <= (ch) && 'Z' >= (ch) || 'a' <= (ch) && 'z' >= (ch) || '_' == (ch))
-#define IS_BLANK(ch)    (' ' == (ch) || '\t' == (ch) || '\n' == (ch))
+#define IS_LETTER(ch)   (('A' <= (ch) && 'Z' >= (ch)) \
+                        || ('a' <= (ch) && 'z' >= (ch)) \
+                        || '_' == (ch))
+
+#define IS_BLANK(ch)    (' ' == (ch) || '\t' == (ch) || '\n' == (ch) || '\r' == (ch))
 
 #define TOKEN_NULL  (0)
-#define TOKEN_SYMB  (128)
+#define TOKEN_LABEL  (128)
 #define TOKEN_SYMB_A (129)
 #define TOKEN_SYMB_X (130)
 #define TOKEN_SYMB_Y (131)
@@ -28,9 +31,6 @@
 #define TOKEN_PRAGMA_END    (135)
 #define TOKEN_PRAGMA_BYTE   (136)
 #define TOKEN_PRAGMA_WORD   (137)
-
-
-
 
 struct tk_symb {
     addr_t addr;
@@ -69,8 +69,8 @@ int trim(char* str);
 struct token_node* create_token(int type, const char* liter, size_t len);
 void destroy_token(struct token_node** head);
 void token_append(struct token_list* tok_list, struct token_node* tok_node);
-int tokenlize(struct token_list* tok_list, char* line, int line_num);
-void toupper(char* str);
+int tokenize(struct token_list* tok_list, char* line, int line_num);
+void str_toupper(char* str);
 struct token_node* token_offset(struct token_node* head, size_t n);
 
 #endif

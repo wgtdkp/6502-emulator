@@ -31,8 +31,8 @@ struct cpu {
     word_t yr;  //Y Register
     addr_t sp;  //Stack Pointer
     addr_t pc;  //Program Counter
-    const struct inst* is;
-    uint16_t clk;   //instruction cycles
+    const struct inst* is;  //instruction set
+    uint16_t cycle_count;   //cycles
 };
 
 

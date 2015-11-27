@@ -10,8 +10,7 @@
 #define PRAGMA_BYTE (0x02)
 #define PRAGMA_WORD (0x03)
 #define PSEUDO_SPC  (0x04)
- 
-#define CODE_MASK(op_code)   ((op_code) & 0xE3)
+
 //#define TO_LITER_CODE(str)  ((str[0] << 16) + (str[1] << 8) + str[2])
 #define TO_LITER_CODE(str)	(str)
 

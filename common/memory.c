@@ -1,5 +1,6 @@
 #include "memory.h"
 #include "utility.h"
+
 mem_t mem[MEM_SIZE];
 
 int load_mem(addr_t start_addr, const char* filename)

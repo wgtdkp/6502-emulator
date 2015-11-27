@@ -98,7 +98,6 @@ static int check_number(const char* str, size_t* len)
 {
     char num_type = 0;
     int stat = 0;
-    int err = 0;
     size_t i;
     for (i = 0; 0 != str[i]; i++) {
         if ('<' == str[i] || '>' == str[i]) {
@@ -130,12 +129,12 @@ static int check_number(const char* str, size_t* len)
     return 0;
 }
 
-int tokenlize(struct token_list* tok_list, char* line, int line_num)
+int tokenize(struct token_list* tok_list, char* line, int line_num)
 {
     size_t i, len;
 
     len = trim(line);
-    toupper(line);
+    str_toupper(line);
     for (i = 0; i < len;) {
         struct token_node* tok_node;
         if (IS_NUM_PREFIX(line[i])) {
@@ -155,7 +154,7 @@ int tokenlize(struct token_list* tok_list, char* line, int line_num)
 					goto ERROR;
 			}
             end = i;
-            tok_node = create_token(TOKEN_SYMB, line + begin, end - begin);
+            tok_node = create_token(TOKEN_LABEL, line + begin, end - begin);
             if (1 == tok_node->len) {
                 if ('A' == tok_node->liter[0])
                     tok_node->type = TOKEN_SYMB_A;
@@ -193,7 +192,8 @@ int tokenlize(struct token_list* tok_list, char* line, int line_num)
 		} else if (IS_BLANK(line[i])) {
 			++i;
 		} else {
-            error("invalid character at line %d, column %d.\n", line_num, i + 1);
+            error("invalid character '%d' at line %d, column %d.\n", 
+                line[i], line_num, i + 1);
             return -1;
         }
     }
@@ -203,7 +203,7 @@ ERROR:
     return -3;
 }
 
-void toupper(char* str)
+void str_toupper(char* str)
 {
     size_t i;
     for (i = 0; 0 != str[i]; i++) {

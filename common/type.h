@@ -1,6 +1,9 @@
 #ifndef _TYPE_H_
 #define _TYPE_H_
 
+//#include <linux/types.h>
+#include <stdint.h>
+
 #define _DEBUG_
 
 #ifdef WIN32
@@ -13,15 +16,19 @@
 typedef unsigned char bool;
 typedef unsigned char byte;
 
-typedef char int8_t;
-typedef unsigned char uint8_t;
-typedef short int16_t;
-typedef unsigned short uint16_t;
-typedef int int32_t;
-typedef unsigned int uint32_t;
-typedef long long int64_t;
-typedef unsigned long long uint64_t;
+#ifndef __int8_t_defined
+//typedef char int8_t;
+//typedef short int16_t;
+//typedef int int32_t;
+//typedef long long int64_t;
+#endif
 
+/*
+typedef unsigned char uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int uint32_t;
+typedef unsigned long long uint64_t;
+*/
 
 #define WORD_SIZE   (8)
 

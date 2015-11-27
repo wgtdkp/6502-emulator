@@ -18,6 +18,15 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\assembler\main.c" />
+    <ClCompile Include="..\..\assembler\parser.c" />
+    <ClCompile Include="..\..\assembler\symbol.c" />
+    <ClCompile Include="..\..\assembler\token.c" />
+    <ClCompile Include="..\..\common\instruction.c" />
+    <ClCompile Include="..\..\common\memory.c" />
+    <ClCompile Include="..\..\common\utility.c" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{5D249C7A-64CB-44C3-8B0A-EA304AB8032D}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
@@ -90,6 +99,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4819;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <AdditionalIncludeDirectories>..\..\assembler;..\..\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -143,23 +153,6 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\assembler\instruction.c" />
-    <ClCompile Include="..\..\assembler\main.c" />
-    <ClCompile Include="..\..\assembler\parser.c" />
-    <ClCompile Include="..\..\assembler\symbol.c" />
-    <ClCompile Include="..\..\assembler\token.c" />
-    <ClCompile Include="..\..\assembler\utility.c" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\assembler\instruction.h" />
-    <ClInclude Include="..\..\assembler\main.h" />
-    <ClInclude Include="..\..\assembler\parser.h" />
-    <ClInclude Include="..\..\assembler\symbol.h" />
-    <ClInclude Include="..\..\assembler\token.h" />
-    <ClInclude Include="..\..\assembler\utility.h" />
-    <ClInclude Include="..\..\src\type.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

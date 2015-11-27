@@ -14,6 +14,8 @@
 #define INST_NUM    (56)
 #define MODE_NUM    (13)
 
+#define TO_LITER_CODE(str)  (str)
+
 static addr_t pc = 0;
 
 static const byte liters[INST_NUM][4] = {
@@ -85,77 +87,6 @@ static const byte liters[INST_NUM][4] = {
 
     TO_LITER_CODE("TYA"),
 };
-
-static const byte codes[INST_NUM] = {
-    CODE_MASK(ADC_IMM),
-    CODE_MASK(AND_IMM),
-    CODE_MASK(ASL_ACC),
-    CODE_MASK(BCC),
-    CODE_MASK(BCS),
-
-    CODE_MASK(BEQ),
-    CODE_MASK(BIT_ABS),
-    CODE_MASK(BMI),
-    CODE_MASK(BNE),
-    CODE_MASK(BPL),
-
-    CODE_MASK(BRK),
-    CODE_MASK(BVC),
-    CODE_MASK(BVS),
-    CODE_MASK(CLC),
-    CODE_MASK(CLD),
-
-    CODE_MASK(CLI),
-    CODE_MASK(CLV),
-    CODE_MASK(CMP_IMM),
-    CODE_MASK(CPX_IMM),
-    CODE_MASK(CPY_IMM),
-
-    CODE_MASK(DEC_ZERO),
-    CODE_MASK(DEX),
-    CODE_MASK(DEY),
-    CODE_MASK(EOR_IMM),
-    CODE_MASK(INC_ZERO),
-
-    CODE_MASK(INX),
-    CODE_MASK(INY),
-    CODE_MASK(JMP_ABS),
-    CODE_MASK(JSR),
-    CODE_MASK(LDA_IMM),
-
-    CODE_MASK(LDX_IMM),
-    CODE_MASK(LDY_IMM),
-    CODE_MASK(LSR_ACC),
-    CODE_MASK(NOP),
-    CODE_MASK(ORA_IMM),
-
-    CODE_MASK(PHA),
-    CODE_MASK(PHP),
-    CODE_MASK(PLA),
-    CODE_MASK(PLP),
-    CODE_MASK(ROL_ACC),
-
-    CODE_MASK(ROR_ACC),
-    CODE_MASK(RTI),
-    CODE_MASK(RTS),
-    CODE_MASK(SBC_IMM),
-    CODE_MASK(SEC),
-
-    CODE_MASK(SED),
-    CODE_MASK(SEI),
-    CODE_MASK(STA_ZERO),
-    CODE_MASK(STX_ZERO),
-    CODE_MASK(STY_ZERO),
-
-    CODE_MASK(TAX),
-    CODE_MASK(TAY),
-    CODE_MASK(TSX),
-    CODE_MASK(TXA),
-    CODE_MASK(TXS),
-
-    CODE_MASK(TYA),
-};
-
 
 static const byte op_codes[INST_NUM][MODE_NUM] = {
 /********{ACC, IMM,  ZERO, Z_X,  Z_Y,  ABS, ABS_X, ABS_Y, IMP, REL, IND_X, IND_Y, IND}*/
@@ -240,8 +171,8 @@ static const byte op_codes[INST_NUM][MODE_NUM] = {
 };
 
 static int parse_number(const char* liter);
-static void dump_prep(FILE* prep_file, struct token_node* head);
-static void dump_code(FILE* code_file, struct tk_inst* inst);
+//static void dump_prep(FILE* prep_file, struct token_node* head);
+//static void dump_code(FILE* code_file, struct tk_inst* inst);
 static byte* gen_code(struct tk_inst* inst, size_t* size);
 
 #define INST_LITER_TO_INT(liter) (liter[0] << 16 | liter[1] << 8 | liter[2])
@@ -272,12 +203,14 @@ static bool match(const struct token_node* head, ...)
 	va_list args;
 	va_start(args, head);
     const struct token_node* p = head;
-	type = va_arg(args, byte);
+	//type = va_arg(args, byte);
+    type = va_arg(args, uint32_t);
     for (i = 0; 0 != type && NULL != p; i++) {
         if (type != p->type)
             return false;
         p = p->next;
-		type = va_arg(args, byte);
+		//type = va_arg(args, byte);
+        type = va_arg(args, uint32_t);
     }
     return (0 == type && NULL == p);   //both of them are NULL(0)
 }
@@ -288,7 +221,7 @@ static int build_symb_tb(struct token_node* head, size_t line_num)
 	if (NULL == head)
 		return 0;
 
-	if (match(head, TOKEN_SYMB, '=', TOKEN_NUM, TOKEN_NULL)) {
+	if (match(head, TOKEN_LABEL, '=', TOKEN_NUM, TOKEN_NULL)) {
 		//TODO: insert into symbol table
 		symb = token_offset(head, 2)->liter;
 		uint16_t data = (uint16_t)parse_number(symb);
@@ -296,7 +229,7 @@ static int build_symb_tb(struct token_node* head, size_t line_num)
 			goto ERR_SYMB_REDEF;
 		symb_tb = symb_insert(symb_tb, head->liter, data);
 	}
-	else if (TOKEN_SYMB == head->type) {
+	else if (TOKEN_LABEL == head->type) {
 		//TODO: insert into symbol table
 		//TODO: check if any instruction followed
 		symb = head->liter;
@@ -337,11 +270,11 @@ static int gen_inst(struct tk_inst* inst, struct token_node* head, size_t line_n
     } else if (match(head, TOKEN_PRAGMA_WORD, TOKEN_NUM, TOKEN_NULL)) {
         inst->op_code = PRAGMA_BYTE;
         inst->operand = (uint16_t)parse_number(token_offset(head, 1)->liter);
-    } else if (match(head, TOKEN_SYMB, '=', TOKEN_NUM, TOKEN_NULL)) {
+    } else if (match(head, TOKEN_LABEL, '=', TOKEN_NUM, TOKEN_NULL)) {
         //TODO: insert into symbol table
         uint16_t data = (uint16_t)parse_number(token_offset(head, 2)->liter);
         symb_tb = symb_insert(symb_tb, head->liter, data);
-    } else if (TOKEN_SYMB == head->type) {
+    } else if (TOKEN_LABEL == head->type) {
         //TODO: insert into symbol table
         //TODO: check if any instruction followed
         symb_tb = symb_insert(symb_tb, head->liter, pc);
@@ -357,7 +290,7 @@ static int gen_inst(struct tk_inst* inst, struct token_node* head, size_t line_n
         } else if (match(head, TOKEN_INST, '#', TOKEN_NUM, TOKEN_NULL)) {
             mode = ADDR_IMM;
             inst->lo = (byte)parse_number(token_offset(head, 2)->liter);
-        } else if (match(head, TOKEN_INST, '#', TOKEN_SYMB, TOKEN_NULL)) {
+        } else if (match(head, TOKEN_INST, '#', TOKEN_LABEL, TOKEN_NULL)) {
             mode = ADDR_IMM;
             symb = symb_find(symb_tb, token_offset(head, 2)->liter);
             if (NULL == symb) {
@@ -393,7 +326,7 @@ static int gen_inst(struct tk_inst* inst, struct token_node* head, size_t line_n
         } else if (match(head, TOKEN_INST, '(', TOKEN_NUM, ',', TOKEN_SYMB_X, ')', TOKEN_NULL)) {
             mode = ADDR_IND_X;
             inst->lo = (byte)parse_number(token_offset(head, 2)->liter);
-        } else if (match(head, TOKEN_INST, '(', TOKEN_SYMB, ',', TOKEN_SYMB_X, ')', TOKEN_NULL)) {
+        } else if (match(head, TOKEN_INST, '(', TOKEN_LABEL, ',', TOKEN_SYMB_X, ')', TOKEN_NULL)) {
             mode = ADDR_IND_X;
             symb = symb_find(symb_tb, token_offset(head, 2)->liter);
             if (NULL == symb) {
@@ -408,7 +341,7 @@ static int gen_inst(struct tk_inst* inst, struct token_node* head, size_t line_n
         } else if (match(head, TOKEN_INST, '(', TOKEN_NUM, ')', TOKEN_NULL)) {
             mode = ADDR_IND;
             inst->operand = (uint16_t)parse_number(token_offset(head, 2)->liter);
-        } else if (match(head, TOKEN_INST, TOKEN_SYMB, TOKEN_NULL)) {
+        } else if (match(head, TOKEN_INST, TOKEN_LABEL, TOKEN_NULL)) {
 			symb = symb_find(symb_tb, token_offset(head, 1)->liter);
             if (NULL == symb) {
                 error("Line %d, undefined symbol '%s' \n", 
@@ -461,8 +394,8 @@ int parse(const char* output, const char* input)
 		int err;
 		struct token_node* p;
 		struct token_list tok_list = { .size = 0,.tail = NULL,.head = NULL };
-		struct tk_inst inst = { .op_code = NOT_INST,.operand = 0 };
-		err = tokenlize(&tok_list, line, line_num);
+		//struct tk_inst inst = { .op_code = NOT_INST,.operand = 0 };
+		err = tokenize(&tok_list, line, line_num);
 		if (0 != err)
 			return err;
 		err = build_symb_tb(tok_list.head, line_num);
@@ -486,7 +419,7 @@ int parse(const char* output, const char* input)
 			size_t len_code = 0;
 			struct token_list tok_list = { .size = 0,.tail = NULL,.head = NULL };
 			struct tk_inst inst = { .op_code = NOT_INST,.operand = 0 };
-			err = tokenlize(&tok_list, line, line_num);
+			err = tokenize(&tok_list, line, line_num);
 			if (0 != err)
 				return err;
 			err = gen_inst(&inst, tok_list.head, line_num);
@@ -519,6 +452,7 @@ int parse(const char* output, const char* input)
     return 0;
 }
 
+/*
 static void replace_addr(struct token_node* p)
 {
 	addr_t addr = symb_find(symb_tb, p->liter)->data;
@@ -528,12 +462,14 @@ static void replace_addr(struct token_node* p)
 	sprintf(p->liter, "$%04x", addr);
 	p->liter[p->len] = 0;
 }
+*/
 
+/*
 static void dump_prep(FILE* prep_file, struct token_node* head)
 {
 	struct token_node* p;
 	for (p = head; NULL != p; p = p->next) {
-		if (TOKEN_SYMB == p->type) {
+		if (TOKEN_LABEL == p->type) {
 			replace_addr(p);
 		}
 	}
@@ -541,7 +477,9 @@ static void dump_prep(FILE* prep_file, struct token_node* head)
 		fprintf(prep_file, "%s ", p->liter);
 	}
 }
+*/
 
+/*
 static void dump_code(FILE* code_file, struct tk_inst* inst)
 {
 	byte* code;
@@ -561,6 +499,7 @@ static void dump_code(FILE* code_file, struct tk_inst* inst)
 		}
 	}
 }
+*/
 
 static byte* gen_code(struct tk_inst* inst, size_t* size)
 {
@@ -626,7 +565,3 @@ static int parse_number(const char* liter)
 		res = H(res);
 	return res;
 }
-
-
-
-

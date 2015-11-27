@@ -1,5 +1,5 @@
 CFLAGS = -Wall
-SRCS = instruction.c parser.c main.c token.c utility.c symbol.c
+SRCS = ../common/instruction.c ../common/utility.c  parser.c main.c token.c symbol.c
 
 TARGET = asmer
 
@@ -11,7 +11,7 @@ CC = gcc
 $(TARGET) : $(OBJS)
 	$(CC) -o $@ $^ -lm
 
-INC = -I./inc -I../src
+INC = -I../common
 
 %.o : %.c
 	$(CC) $(CFLAGS) $(INC) -o $@ -c $<

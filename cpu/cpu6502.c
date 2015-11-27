@@ -67,9 +67,9 @@ void branch(struct cpu* cpu, byte flag, byte b, int8_t offset)
 {
     if (b == BIT(cpu->psw, flag)) {
         if ( (cpu->pc & 0xFF00) != ((cpu->pc + offset) & 0xFF00) )
-            cpu->clk += 2;
+            cpu->cycle_count += 2;
         else
-            cpu->clk += 1;
+            cpu->cycle_count += 1;
         cpu->pc += offset;
     }
 }
@@ -318,7 +318,7 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
         byte data;
         addr_t addr;
         byte op_code = read_byte(cpu->pc++);
-        cpu->clk += cpu->is[op_code].cycle;
+        cpu->cycle_count += cpu->is[op_code].cycle;
 
         if (2 == cpu->is[op_code].len)
             inst = read_byte(cpu->pc);
@@ -1082,6 +1082,6 @@ struct cpu cpu6502 = {
     .yr = 0x00,
     .sp = 0x01FF,   //init value of Stack Pointer
     .pc = 0x00,
-    .clk = 0x0000,
+    .cycle_count = 0x0000,
     .is = is,
 };
