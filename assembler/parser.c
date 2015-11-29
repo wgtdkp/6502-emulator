@@ -182,7 +182,7 @@ static byte* gen_code(struct tk_inst* inst, size_t* size);
 int find_inst(const char* liter)
 {
     uint32_t x = INST_LITER_TO_INT(liter);
-    size_t begin = 0, end = INST_NUM - 1;
+    int begin = 0, end = INST_NUM - 1;
     while (begin <= end) {
         size_t middle = (end - begin) / 2 + begin;
 		uint32_t mid_val = INST_LITER_TO_INT(liters[middle]);
@@ -221,7 +221,7 @@ static int build_symb_tb(struct token_node* head, size_t line_num)
 	if (NULL == head)
 		return 0;
 
-	if (match(head, TOKEN_LABEL, '=', TOKEN_NUM, TOKEN_NULL)) {
+	if (match(head, TOKEN_LABEL, '=', TOKEN_NUMBER, TOKEN_NULL)) {
 		//TODO: insert into symbol table
 		symb = token_offset(head, 2)->liter;
 		uint16_t data = (uint16_t)parse_number(symb);
@@ -259,18 +259,18 @@ static int gen_inst(struct tk_inst* inst, struct token_node* head, size_t line_n
 	if (NULL == head) 
 		return 0;
 
-    if (match(head, '*', '=', TOKEN_NUM, TOKEN_NULL)) {
+    if (match(head, '*', '=', TOKEN_NUMBER, TOKEN_NULL)) {
         inst->op_code = PSEUDO_SPC;
         inst->operand = (addr_t)parse_number(token_offset(head, 2)->liter);
     } else if (match(head, TOKEN_PRAGMA_END, TOKEN_NULL)) {
         return TERMINAL;
-    } else if (match(head, TOKEN_PRAGMA_BYTE, TOKEN_NUM, TOKEN_NULL)) {
+    } else if (match(head, TOKEN_PRAGMA_BYTE, TOKEN_NUMBER, TOKEN_NULL)) {
         inst->op_code = PRAGMA_BYTE;
         inst->lo = (byte)parse_number(token_offset(head, 1)->liter);
-    } else if (match(head, TOKEN_PRAGMA_WORD, TOKEN_NUM, TOKEN_NULL)) {
+    } else if (match(head, TOKEN_PRAGMA_WORD, TOKEN_NUMBER, TOKEN_NULL)) {
         inst->op_code = PRAGMA_BYTE;
         inst->operand = (uint16_t)parse_number(token_offset(head, 1)->liter);
-    } else if (match(head, TOKEN_LABEL, '=', TOKEN_NUM, TOKEN_NULL)) {
+    } else if (match(head, TOKEN_LABEL, '=', TOKEN_NUMBER, TOKEN_NULL)) {
         //TODO: insert into symbol table
         uint16_t data = (uint16_t)parse_number(token_offset(head, 2)->liter);
         symb_tb = symb_insert(symb_tb, head->liter, data);
@@ -287,7 +287,7 @@ static int gen_inst(struct tk_inst* inst, struct token_node* head, size_t line_n
             mode = ADDR_IMP; 
         } else if (match(head, TOKEN_INST, TOKEN_SYMB_A, TOKEN_NULL)) {
             mode = ADDR_ACC;
-        } else if (match(head, TOKEN_INST, '#', TOKEN_NUM, TOKEN_NULL)) {
+        } else if (match(head, TOKEN_INST, '#', TOKEN_NUMBER, TOKEN_NULL)) {
             mode = ADDR_IMM;
             inst->lo = (byte)parse_number(token_offset(head, 2)->liter);
         } else if (match(head, TOKEN_INST, '#', TOKEN_LABEL, TOKEN_NULL)) {
@@ -299,7 +299,7 @@ static int gen_inst(struct tk_inst* inst, struct token_node* head, size_t line_n
                 return -2;
             }
             inst->lo = (byte)(symb->data); //retrieve from symbol table
-        } else if (match(head, TOKEN_INST, TOKEN_NUM, TOKEN_NULL)) {
+        } else if (match(head, TOKEN_INST, TOKEN_NUMBER, TOKEN_NULL)) {
 			uint16_t data = parse_number(token_offset(head, 1)->liter);
 			if (0 == is_branch(head)) {
 				mode = ADDR_ABS;
@@ -308,22 +308,22 @@ static int gen_inst(struct tk_inst* inst, struct token_node* head, size_t line_n
 				mode = ADDR_REL;
 				inst->lo = data - (pc + 2);	//branch instructions are all 2 bytes len
 			}
-        } else if (match(head, TOKEN_INST, TOKEN_NUM, ',', TOKEN_SYMB_X, TOKEN_NULL)) {
+        } else if (match(head, TOKEN_INST, TOKEN_NUMBER, ',', TOKEN_SYMB_X, TOKEN_NULL)) {
             mode = ADDR_ABS_X;
             inst->operand = (uint16_t)parse_number(token_offset(head, 1)->liter);
-        } else if (match(head, TOKEN_INST, TOKEN_NUM, ',', TOKEN_SYMB_Y, TOKEN_NULL)) {
+        } else if (match(head, TOKEN_INST, TOKEN_NUMBER, ',', TOKEN_SYMB_Y, TOKEN_NULL)) {
             mode = ADDR_ABS_Y;
             inst->operand = (uint16_t)parse_number(token_offset(head, 1)->liter);
-        } else if (match(head, TOKEN_INST, '*', TOKEN_NUM, TOKEN_NULL)) {
+        } else if (match(head, TOKEN_INST, '*', TOKEN_NUMBER, TOKEN_NULL)) {
             mode = ADDR_ZERO;
             inst->lo = (byte)parse_number(token_offset(head, 2)->liter);
-        } else if (match(head, TOKEN_INST, '*', TOKEN_NUM, ',', TOKEN_SYMB_X, TOKEN_NULL)) {
+        } else if (match(head, TOKEN_INST, '*', TOKEN_NUMBER, ',', TOKEN_SYMB_X, TOKEN_NULL)) {
             mode = ADDR_ZERO_X;
             inst->lo = (byte)parse_number(token_offset(head, 2)->liter);
-        } else if (match(head, TOKEN_INST, '*', TOKEN_NUM, ',', TOKEN_SYMB_Y, TOKEN_NULL)) {
+        } else if (match(head, TOKEN_INST, '*', TOKEN_NUMBER, ',', TOKEN_SYMB_Y, TOKEN_NULL)) {
             mode = ADDR_ZERO_Y;
             inst->lo = (byte)parse_number(token_offset(head, 2)->liter);
-        } else if (match(head, TOKEN_INST, '(', TOKEN_NUM, ',', TOKEN_SYMB_X, ')', TOKEN_NULL)) {
+        } else if (match(head, TOKEN_INST, '(', TOKEN_NUMBER, ',', TOKEN_SYMB_X, ')', TOKEN_NULL)) {
             mode = ADDR_IND_X;
             inst->lo = (byte)parse_number(token_offset(head, 2)->liter);
         } else if (match(head, TOKEN_INST, '(', TOKEN_LABEL, ',', TOKEN_SYMB_X, ')', TOKEN_NULL)) {
@@ -335,10 +335,10 @@ static int gen_inst(struct tk_inst* inst, struct token_node* head, size_t line_n
                 return -2;
             }
             inst->lo = (byte)(symb->data); //retrieve from symbol table
-        } else if (match(head, TOKEN_INST, '(', TOKEN_NUM, ')', ',', TOKEN_SYMB_Y, TOKEN_NULL)) {
+        } else if (match(head, TOKEN_INST, '(', TOKEN_NUMBER, ')', ',', TOKEN_SYMB_Y, TOKEN_NULL)) {
             mode = ADDR_IND_Y;
             inst->lo = (byte)parse_number(token_offset(head, 2)->liter);
-        } else if (match(head, TOKEN_INST, '(', TOKEN_NUM, ')', TOKEN_NULL)) {
+        } else if (match(head, TOKEN_INST, '(', TOKEN_NUMBER, ')', TOKEN_NULL)) {
             mode = ADDR_IND;
             inst->operand = (uint16_t)parse_number(token_offset(head, 2)->liter);
         } else if (match(head, TOKEN_INST, TOKEN_LABEL, TOKEN_NULL)) {
@@ -357,6 +357,7 @@ static int gen_inst(struct tk_inst* inst, struct token_node* head, size_t line_n
 			}
         } else {
             error("Line %d, invalid format of instruction '%s'\n", line_num, head->liter);
+			return -2;
         }
 
         byte op_code = op_codes[inst_index][mode];

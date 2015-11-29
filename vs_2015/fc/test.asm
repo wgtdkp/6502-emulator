@@ -1,21 +1,51 @@
-mlt16   LDA #$00     ; clear p2 and p3 of product
-       STA $26
-       STA $27
-       LDX #$16     ; multiplier bit count = 16
-nxtbt   LSR $21      ; shift two-byte multiplier right
-       ROR $20
-       BCC align    ; multiplier = 1?
-       LDA $26      ; yes. fetch p2
-       CLC
-       ADC $22      ; and add m0 to it
-       STA $26      ; store new p2
-       LDA $27      ; fetch p3
-       ADC $23      ; and add m1 to it
-align   ROR A        ; rotate four-byte product right
-       STA $27      ; store new p3
-       ROR $26
-       ROR $25
-       ROR $24
-       DEX          ; decrement bit count
-       BNE nxtbt    ; loop until 16 bits are done
-   end BEQ end
+;16 bit unsigned multiply
+
+      *=$8000
+      LDA #$FF
+      STA $20
+      LDA #$11
+      STA $21
+      LDA #$FF
+      STA $22
+      LDA #$11
+      STA $23
+
+
+      LDA #$00
+      STA $24
+      LDA #$00
+      STA $25
+      LDA #$00
+      STA $26
+      LDA #$00
+      STA $27
+
+loop  LDA $22
+      BNE go
+      LDA $23
+      BNE go
+      JMP term
+go    CLC
+      LDA $24
+      ADC $20
+      STA $24
+      LDA $25
+      ADC $21
+      STA $25
+
+      LDA $26
+      ADC #$00
+      STA $26
+      LDA $27
+      ADC #$00
+      STA $27
+
+      DEC $22
+      LDA $22
+      CMP #$FF
+      BEQ equal
+      JMP loop
+equal DEC $23
+      JMP loop
+
+term  BRK

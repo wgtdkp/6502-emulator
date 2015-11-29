@@ -4,29 +4,13 @@
 #include "type.h"
 #include "memory.h"
 
-#define EQUAL_NOCASE(x, y) ((x) == (y) || (x) - 'a' == (y) - 'A' || (x) - 'A' == (y) - 'a')
-
-#define IS_NUM_PREFIX(ch) ('<' == (ch) \
-                    || '>' == (ch) \
-                    || 'O' == (ch) \
-                    || '$' == (ch) \
-                    || '%' == (ch) \
-                    || IS_NUM(ch))
-
-#define IS_NUM(ch)      ('0' <= (ch) && '9' >= (ch))
-#define IS_LETTER(ch)   (('A' <= (ch) && 'Z' >= (ch)) \
-                        || ('a' <= (ch) && 'z' >= (ch)) \
-                        || '_' == (ch))
-
-#define IS_BLANK(ch)    (' ' == (ch) || '\t' == (ch) || '\n' == (ch) || '\r' == (ch))
-
 #define TOKEN_NULL  (0)
 #define TOKEN_LABEL  (128)
 #define TOKEN_SYMB_A (129)
 #define TOKEN_SYMB_X (130)
 #define TOKEN_SYMB_Y (131)
 #define TOKEN_INST  (132)
-#define TOKEN_NUM   (133)
+#define TOKEN_NUMBER   (133)
 //#define TOKEN_IMM   (134)
 #define TOKEN_PRAGMA_END    (135)
 #define TOKEN_PRAGMA_BYTE   (136)

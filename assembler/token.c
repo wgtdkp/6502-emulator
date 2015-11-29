@@ -5,6 +5,28 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define IS_DIGIT(ch)    ('0' <= (ch) && '9' >= (ch))
+#define IS_NUMBER(ch) (IS_DIGIT(ch) \
+                    || ('A' <= (ch) && (ch) <= 'F') \
+                    || '<' == (ch) \
+                    || '>' == (ch) \
+                    || 'O' == (ch) \
+                    || '$' == (ch) \
+                    || '%' == (ch))
+#define IS_LETTER(ch)   (('A' <= (ch) && 'Z' >= (ch)) \
+                        || '_' == (ch))
+#define IS_BLANK(ch)    (' ' == (ch) \
+                    || '\t' == (ch) \
+                    || '\n' == (ch) \
+                    || '\r' == (ch))
+#define IS_PUNCTUATION(ch) (',' == (ch) \
+                        || '#' == (ch) \
+                        || '*' == (ch) \
+                        || '=' == (ch)) \
+                        || '(' == (ch) \
+                        || ')' == (ch) 
+#define IS_COMMENTS(ch) (';' == (ch))
+
 static const char valid_chars[] = ".()#<>$%O,;*=";
 
 static bool is_valid_char(char ch)
@@ -27,14 +49,13 @@ int trim(char* str)
     for (i = 0; 0 != str[i] && IS_BLANK(str[i]);) ++i;
     begin = i;
 	for (; 0 != str[i]; i++);
-	--i;
-    for (; i >= 0 && IS_BLANK(str[i]);) --i;
-	end = i;
-    for (i = 0, j = begin; j <= end; i++, j++)
+    for (--i; i >= 0 && IS_BLANK(str[i]);) --i;
+	end = i + 1;
+    for (i = 0, j = begin; j < end; i++, j++)
         str[i] = str[j];
     str[i] = 0;
 
-    return MAX(0, end - begin + 1);
+    return MAX(0, end - begin);
 }
 
 struct token_node* create_token(int type, const char* liter, size_t len)
@@ -94,41 +115,153 @@ struct token_node* token_offset(struct token_node* head, size_t n)
 /*
  *@return: negative, error; 0, no error;
  */
-static int check_number(const char* str, size_t* len)
+static bool check_number(const char* str, size_t len)
 {
     char num_type = 0;
     int stat = 0;
     size_t i;
-    for (i = 0; 0 != str[i]; i++) {
+    for (i = 0; i < len; i++) {
         if ('<' == str[i] || '>' == str[i]) {
             if (0 != stat)
-                return -2;
+                return false;
             stat = '<';
         } else if ('$' == str[i] || 'O' == str[i] || '%' == str[i]) {
             if ('$' == stat || '0' == stat)
-                return -3;
+                return false;
             num_type = str[i];
             stat = '$';
-        } else if (IS_NUM(str[i])) {
+        } else if (IS_DIGIT(str[i])) {
             if (('%' == num_type) && ('0' != str[i] && '1' != str[i]))
-                return -4;
-            else if (('O' == num_type) && !IS_NUM(str[i]))
-                return -5;
+                return false;
+            else if (('O' == num_type) && !IS_DIGIT(str[i]))
+                return false;
             stat = '0';
         } else if ('A' <= str[i] && 'F' >= str[i]) {
             if ('$' != num_type)
-                return -6;
+                return false;
             stat = '0';
         } else {
             break;
         }
     }
-    if ('0' != stat)
-        return -7;
-	*len = i;
+    return ('0' == stat);    
+}
+
+enum Status {
+    STATUS_INVALID = 0,
+    STATUS_LETTER,
+    STATUS_PUNCTUATION,
+    STATUS_NUMBER,
+    STATUS_BLANK,
+    STATUS_COMMENTS,
+};
+
+static enum Status next_status(enum Status current_status, char ch)
+{
+    enum Status next_status;
+    if (STATUS_COMMENTS == current_status)
+        return STATUS_COMMENTS;
+
+    if (IS_LETTER(ch))
+        next_status = STATUS_LETTER;
+    else if (IS_PUNCTUATION(ch))
+        next_status = STATUS_PUNCTUATION;
+    else if (IS_NUMBER(ch))
+        next_status = STATUS_NUMBER;
+    else if (IS_BLANK(ch))
+        next_status = STATUS_BLANK;
+    else if (IS_COMMENTS(ch))
+        next_status = STATUS_COMMENTS;
+    else
+        next_status = STATUS_INVALID;
+    return next_status;
+}
+
+static int letter_type(const char* liter, int len)
+{
+	if (3 == len && is_inst(liter)) {
+		return TOKEN_INST;
+	} else if (1 == len) {
+		if ('A' == liter[0])
+			return TOKEN_SYMB_A;
+		else if ('X' == liter[0])
+			return TOKEN_SYMB_X;
+		else if ('Y' == liter[0])
+			return TOKEN_SYMB_Y;
+	}
+	return TOKEN_LABEL;
+}
+
+int tokenize(struct token_list* tok_list, char* line, int line_num)
+{
+    enum Status status;
+    size_t i, len;
+    size_t token_begin, token_end;
+    //len = trim(line);
+    
+    token_begin = 0, token_end  = 0;
+    status = STATUS_INVALID;
+	len = strlen(line);
+	str_toupper(line);
+    /*careful: it seems an error to let "i <= len", 
+      but we need one more execution to flush the last token into token_list */
+    for (i = 0; i <= len; i++) {
+		struct token_node* tok_node;
+        switch (status) {
+        case STATUS_LETTER:
+            if (!IS_LETTER(line[i]) && !IS_DIGIT(line[i])) {
+                token_end = i;
+                tok_node = create_token(TOKEN_LABEL, line + token_begin, token_end - token_begin);
+				tok_node->type = letter_type(tok_node->liter, tok_node->len);
+				token_append(tok_list, tok_node);
+                token_begin = i;
+				status = next_status(status, line[i]);
+            }
+            break;
+        case STATUS_PUNCTUATION:
+            token_end = i;
+            tok_node = create_token(line[token_begin], line + token_begin, token_end - token_begin);
+            token_append(tok_list, tok_node);
+            token_begin = i;
+            status = next_status(status, line[i]);
+            break;
+        case STATUS_NUMBER:
+            if (!IS_NUMBER(line[i])) {
+                token_end = i;
+                if (!check_number(line + token_begin, token_end - token_begin)) {
+                    error("invalid number format at line %d, column %d.\n", line_num, i + 1);
+                    return -2;
+                }
+                tok_node = create_token(TOKEN_NUMBER, line + token_begin, token_end - token_begin);
+                token_append(tok_list, tok_node);
+                token_begin = i;
+				status = next_status(status, line[i]);
+            }
+            break;
+        case STATUS_BLANK:
+            if (!IS_BLANK(line[i])) {
+                token_begin = i;
+				status = next_status(status, line[i]);
+            }
+            break;
+        case STATUS_COMMENTS:
+            //once status is in comments, it will always be in comments
+            break;
+        case STATUS_INVALID:
+            token_begin = i;
+            status = next_status(status, line[i]);
+			if (STATUS_INVALID == status && 0 != line[i]) {
+				error("invalid format at line %d\n", line_num);
+				return -3;
+			}
+            break;
+        }
+    }
+
     return 0;
 }
 
+/*
 int tokenize(struct token_list* tok_list, char* line, int line_num)
 {
     size_t i, len;
@@ -137,20 +270,20 @@ int tokenize(struct token_list* tok_list, char* line, int line_num)
     str_toupper(line);
     for (i = 0; i < len;) {
         struct token_node* tok_node;
-        if (IS_NUM_PREFIX(line[i])) {
+        if (IS_NUMBER(line[i])) {
             size_t len_tok = 0;
             if (0 != check_number(line + i, &len_tok)) {
                 error("invalid number format at line %d, column %d.\n", line_num, i + 1);
                 return -2;
             }
 
-            tok_node = create_token(TOKEN_NUM, line + i, len_tok);
+            tok_node = create_token(TOKEN_NUMBER, line + i, len_tok);
             token_append(tok_list, tok_node);
             i += len_tok;
         } else if (IS_LETTER(line[i])) {
             size_t begin, end;
             for (begin = i; i < len && !IS_BLANK(line[i]); i++) {
-				if (!IS_LETTER(line[i]) && !IS_NUM(line[i]))
+				if (!IS_LETTER(line[i]) && !IS_DIGIT(line[i]))
 					goto ERROR;
 			}
             end = i;
@@ -202,6 +335,7 @@ ERROR:
     error("invalid format at line %d\n", line_num);
     return -3;
 }
+*/
 
 void str_toupper(char* str)
 {
