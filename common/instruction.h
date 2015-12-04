@@ -4,16 +4,7 @@
 #include "type.h"
 #include <stdint.h>
 
-#define PSW_C   (0)
-#define PSW_Z   (1)
-#define PSW_I   (2)
-#define PSW_D   (3)
-#define PSW_B   (4)
-#define PSW_R   (5) //reserve
-#define PSW_V   (6)
-#define PSW_N   (7)
-
-/*******INSTRUCTION DEFINES*******/
+/*******INSTRUCTION SET*******/
 
 /******ADC******/
 #define ADC_IMM     (0x69)

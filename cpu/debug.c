@@ -44,6 +44,7 @@ int main(void)
     load_mem(start_addr, argv[1]);
 
     //print_cpu(&cpu6502);
+	cpu_boot(&cpu6502);
     cpu6502_run(&cpu6502, mem);
     print_cpu(&cpu6502);
     return 0;

@@ -1,27 +1,84 @@
 #include "cpu6502.h"
 #include "debug.h"
+//#include "memory.h"
+
+#define PSW_C   (0x00)	//carry
+#define PSW_Z   (0x01)	//zero
+#define PSW_I   (0x02)	//IRQ interrupts 
+#define PSW_D   (0x03) //enbale decimal
+#define PSW_B   (0x04) //brk was executed
+#define PSW_R   (0x05) //reserve
+#define PSW_V   (0x06) //overflow
+#define PSW_N   (0x07) //negative
+
+static inline void ENABLE_IRQ(struct cpu* cpu)
+{
+	SET_BIT(&cpu->psw, PSW_I, 0);
+}
+
+static inline DISABLE_IRQ(struct cpu* cpu)
+{
+	SET_BIT(&cpu->psw, PSW_I, 1);
+}
+
+static inline void PUSH(struct cpu* cpu, word_t m)
+{
+	write_byte(SP_OFFSET + cpu->sp--, m);
+}
+
+static inline word_t POP(struct cpu* cpu)
+{
+	return read_byte(SP_OFFSET + (++cpu->sp));
+}
+
+
+void cpu_boot(struct cpu* cpu)
+{
+	DISABLE_IRQ(cpu);
+#ifdef DEBUG
+	write_2bytes(RESET_VECTOR, 0x8000);
+#endif
+	cpu->pc = read_2bytes(RESET_VECTOR);
+}
+
+struct cpu cpu6502 = {
+#ifdef DEBUG
+	.psw = 0x20, //set the reserve bit
+	.acc = 0x00,
+	.xr = 0x00,
+	.yr = 0x00,
+	/*init value of Stack Pointer should be 0x01FF,
+	the true value of sp is sp + SP_OFFSET,
+	this should be handled by user himself.*/
+	.sp = 0xFF,
+	.pc = 0x00,
+#endif
+	.cycle_count = 0x0000,
+	.is = is,
+};
+
 
 static inline void adc(struct cpu* cpu, word_t m)
 {
     uint16_t t;
     t = cpu->acc + m + BIT(cpu->psw, PSW_C);
-    SET_BIT(cpu->psw, PSW_Z, 0 == t);
-    //SET_BIT(cpu->psw, PSW_V, BIT(cpu->acc, 7) != BIT(t, 7));
-    //SET_BIT(cpu->psw, PSW_N, BIT(t, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0 == t);
+    //SET_BIT(&cpu->psw, PSW_V, BIT(cpu->acc, 7) != BIT(t, 7));
+    //SET_BIT(&cpu->psw, PSW_N, BIT(t, 7));
     if (BIT(cpu->psw, PSW_D)) {
         if ( (cpu->acc & 0x0F) + (m & 0x0F) + BIT(cpu->psw, PSW_C) > 9)
             t += 6;
-        SET_BIT(cpu->psw, PSW_N, BIT(t, 7));
+        SET_BIT(&cpu->psw, PSW_N, BIT(t, 7));
         
         //the two operands have same sign, and the sum gets a different sign.
-        SET_BIT(cpu->psw, PSW_V, !((cpu->acc ^ m) & 0x80) && ((cpu->acc ^ t) & 0x80) );
+        SET_BIT(&cpu->psw, PSW_V, !((cpu->acc ^ m) & 0x80) && ((cpu->acc ^ t) & 0x80) );
         if(t > 0x99)
             t += 96;    //becareful
-        SET_BIT(cpu->psw, PSW_C, t > 0x99);
+        SET_BIT(&cpu->psw, PSW_C, t > 0x99);
     } else {
-        SET_BIT(cpu->psw, PSW_N, BIT(t, 7));
-        SET_BIT(cpu->psw, PSW_V, !((cpu->acc ^ m) & 0x80) && ((cpu->acc ^ t) & 0x80) );
-        SET_BIT(cpu->psw, PSW_C, t > 0xFF);
+        SET_BIT(&cpu->psw, PSW_N, BIT(t, 7));
+        SET_BIT(&cpu->psw, PSW_V, !((cpu->acc ^ m) & 0x80) && ((cpu->acc ^ t) & 0x80) );
+        SET_BIT(&cpu->psw, PSW_C, t > 0xFF);
     }
     cpu->acc = (word_t)t;
 }
@@ -29,16 +86,16 @@ static inline void adc(struct cpu* cpu, word_t m)
 static inline void and(struct cpu* cpu, word_t m)
 {
     cpu->acc &= m;
-    SET_BIT(cpu->psw, PSW_N, BIT(cpu->acc, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0 == cpu->acc);
+    SET_BIT(&cpu->psw, PSW_N, BIT(cpu->acc, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0 == cpu->acc);
 }
 
 static inline word_t asl(struct cpu* cpu, word_t b)
 {
-    SET_BIT(cpu->psw, PSW_C, BIT(b, 7));
+    SET_BIT(&cpu->psw, PSW_C, BIT(b, 7));
     b = (b << 1) & 0xFF;
-    SET_BIT(cpu->psw, PSW_N, BIT(b, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0 == b);
+    SET_BIT(&cpu->psw, PSW_N, BIT(b, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0 == b);
     return b;
 }
 
@@ -46,9 +103,9 @@ static inline void bit(struct cpu* cpu, word_t m)
 {
     word_t t;
     t = cpu->acc & m;
-    SET_BIT(cpu->psw, PSW_N, BIT(t, 7));
-    SET_BIT(cpu->psw, PSW_V, BIT(t, 6));
-    SET_BIT(cpu->psw, PSW_Z, 0 == t);
+    SET_BIT(&cpu->psw, PSW_N, BIT(t, 7));
+    SET_BIT(&cpu->psw, PSW_V, BIT(t, 6));
+    SET_BIT(&cpu->psw, PSW_Z, 0 == t);
 }
 
 static inline void brk(struct cpu* cpu)
@@ -56,21 +113,20 @@ static inline void brk(struct cpu* cpu)
     ++cpu->pc;
     PUSH(cpu, H(cpu->pc));
     PUSH(cpu, L(cpu->pc));
-    SET_BIT(cpu->psw, PSW_B, 1);
+    SET_BIT(&cpu->psw, PSW_B, 1);
     PUSH(cpu, cpu->psw);
-    SET_BIT(cpu->psw, PSW_I, 1);
-    cpu->pc = read_2byte(MEM_SIZE - 1 - 1);
+	DISABLE_IRQ(cpu);
+    cpu->pc = read_2bytes(BRK_VECTOR);
 }
 
-static inline 
-void branch(struct cpu* cpu, byte flag, byte b, int8_t offset)
+static inline void branch(struct cpu* cpu, byte flag, byte b, int8_t offset)
 {
     if (b == BIT(cpu->psw, flag)) {
         if ( (cpu->pc & 0xFF00) != ((cpu->pc + offset) & 0xFF00) )
             cpu->cycle_count += 2;
         else
             cpu->cycle_count += 1;
-        cpu->pc += offset;
+        cpu->pc += offset;	//jump to destination
     }
 }
 
@@ -78,133 +134,133 @@ static inline void cmp(struct cpu* cpu, word_t m)
 {
     uint16_t t;
     t = cpu->acc - m;
-    SET_BIT(cpu->psw, PSW_N, BIT(t, 7));
-    SET_BIT(cpu->psw, PSW_C, cpu->acc >= m);
-    SET_BIT(cpu->psw, PSW_Z, 0 == t);
+    SET_BIT(&cpu->psw, PSW_N, BIT(t, 7));
+    SET_BIT(&cpu->psw, PSW_C, cpu->acc >= m);
+    SET_BIT(&cpu->psw, PSW_Z, 0 == t);
 }
 
 static inline void cpx(struct cpu* cpu, word_t m)
 {
     uint16_t t;
     t = cpu->xr - m;
-    SET_BIT(cpu->psw, PSW_N, BIT(t, 7));
-    SET_BIT(cpu->psw, PSW_C, cpu->xr >= m);
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == t);
+    SET_BIT(&cpu->psw, PSW_N, BIT(t, 7));
+    SET_BIT(&cpu->psw, PSW_C, cpu->xr >= m);
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == t);
 }
 
 static inline void cpy(struct cpu* cpu, word_t m)
 {
     uint16_t t;
     t = cpu->yr - m;
-    SET_BIT(cpu->psw, PSW_N, BIT(t, 7));
-    SET_BIT(cpu->psw, PSW_C, cpu->yr >= m);
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == t);
+    SET_BIT(&cpu->psw, PSW_N, BIT(t, 7));
+    SET_BIT(&cpu->psw, PSW_C, cpu->yr >= m);
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == t);
 }
 
 static inline word_t dec(struct cpu* cpu, word_t m)
 {
     --m;
-    SET_BIT(cpu->psw, PSW_N, BIT(m, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == m);
+    SET_BIT(&cpu->psw, PSW_N, BIT(m, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == m);
     return m;
 }
 
 static inline void dex(struct cpu* cpu)
 {
     --cpu->xr;
-    SET_BIT(cpu->psw, PSW_N, BIT(cpu->xr, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == cpu->xr);
+    SET_BIT(&cpu->psw, PSW_N, BIT(cpu->xr, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == cpu->xr);
 }
 
 static inline void dey(struct cpu* cpu)
 {
     --cpu->yr;
-    SET_BIT(cpu->psw, PSW_N, BIT(cpu->yr, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == cpu->yr);
+    SET_BIT(&cpu->psw, PSW_N, BIT(cpu->yr, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == cpu->yr);
 }
 
 static inline void eor(struct cpu* cpu, word_t m)
 {
     m ^= cpu->acc;
-    SET_BIT(cpu->psw, PSW_N, BIT(m, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == m);
+    SET_BIT(&cpu->psw, PSW_N, BIT(m, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == m);
     cpu->acc = m;
 }
 
 static inline word_t inc(struct cpu* cpu, word_t m)
 {
     ++m;
-    SET_BIT(cpu->psw, PSW_N, BIT(m, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == m);
+    SET_BIT(&cpu->psw, PSW_N, BIT(m, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == m);
     return m;
 }
 
 static inline void inx(struct cpu* cpu)
 {
     ++cpu->xr;
-    SET_BIT(cpu->psw, PSW_N, BIT(cpu->xr, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == cpu->xr);
+    SET_BIT(&cpu->psw, PSW_N, BIT(cpu->xr, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == cpu->xr);
 }
 
 static inline void iny(struct cpu* cpu)
 {
     ++cpu->yr;
-    SET_BIT(cpu->psw, PSW_N, BIT(cpu->yr, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == cpu->yr);
+    SET_BIT(&cpu->psw, PSW_N, BIT(cpu->yr, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == cpu->yr);
 }
 
 
 static inline void jsr(struct cpu* cpu, addr_t addr)
 {
-    --cpu->pc;
-    PUSH(cpu, H(cpu->pc));
-    PUSH(cpu, L(cpu->pc));
+    const addr_t pc_cur = cpu->pc - 1;
+    PUSH(cpu, H(pc_cur));
+    PUSH(cpu, L(pc_cur));
     cpu->pc = addr;
 }
 
 static inline void lda(struct cpu* cpu, word_t m)
 {
     cpu->acc = m;
-    SET_BIT(cpu->psw, PSW_N, BIT(cpu->acc, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == cpu->acc);
+    SET_BIT(&cpu->psw, PSW_N, BIT(cpu->acc, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == cpu->acc);
 }
 
 static inline void ldx(struct cpu* cpu, word_t m)
 {
-    SET_BIT(cpu->psw, PSW_N, BIT(m, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == m);
+    SET_BIT(&cpu->psw, PSW_N, BIT(m, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == m);
     cpu->xr = m;
 }
 
 static inline void ldy(struct cpu* cpu, word_t m)
 {
-    SET_BIT(cpu->psw, PSW_N, BIT(m, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == m);
+    SET_BIT(&cpu->psw, PSW_N, BIT(m, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == m);
     cpu->yr = m;
 }
 
 static inline word_t lsr(struct cpu* cpu, word_t m)
 {
-    SET_BIT(cpu->psw, PSW_N, 0);
-    SET_BIT(cpu->psw, PSW_C, BIT(m, 0));
+    SET_BIT(&cpu->psw, PSW_N, 0);
+    SET_BIT(&cpu->psw, PSW_C, BIT(m, 0));
     m >>= 1;
-    SET_BIT(cpu->psw, PSW_Z, 0 == m);
+    SET_BIT(&cpu->psw, PSW_Z, 0 == m);
     return m;
 }
 
 static inline void ora(struct cpu* cpu, word_t m)
 {
     m |= cpu->acc;
-    SET_BIT(cpu->psw, PSW_N, BIT(m, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == m);
+    SET_BIT(&cpu->psw, PSW_N, BIT(m, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == m);
     cpu->acc = m;
 }
 
 static inline void pla(struct cpu* cpu)
 {
     cpu->acc = POP(cpu);
-    SET_BIT(cpu->psw, PSW_N, BIT(cpu->acc, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == cpu->acc);
+    SET_BIT(&cpu->psw, PSW_N, BIT(cpu->acc, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == cpu->acc);
 }
 
 static inline word_t rol(struct cpu* cpu, word_t b)
@@ -213,9 +269,9 @@ static inline word_t rol(struct cpu* cpu, word_t b)
     t = BIT(b, 7);
     b <<= 1;
     b |= BIT(cpu->psw, PSW_C);
-    SET_BIT(cpu->psw, PSW_C, t);
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == b);
-    SET_BIT(cpu->psw, PSW_N, BIT(b, 7));
+    SET_BIT(&cpu->psw, PSW_C, t);
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == b);
+    SET_BIT(&cpu->psw, PSW_N, BIT(b, 7));
     return b;
 }
 
@@ -225,80 +281,80 @@ static inline word_t ror(struct cpu* cpu, word_t b)
     t = BIT(b, 0);
     b >>= 1;
     b |= BIT(cpu->psw, PSW_C) << 7;
-    SET_BIT(cpu->psw, PSW_C, t);
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == b);
-    SET_BIT(cpu->psw, PSW_N, BIT(b, 7));
+    SET_BIT(&cpu->psw, PSW_C, t);
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == b);
+    SET_BIT(&cpu->psw, PSW_N, BIT(b, 7));
     return b;
 }
 
 static inline void rti(struct cpu* cpu)
 {
-    word_t l, h;
+    word_t low, high;
     cpu->psw = POP(cpu);
-    l = POP(cpu);
-    h = POP(cpu);
-    cpu->pc = ((addr_t)h << 8) | l;
+    low = POP(cpu);
+    high = POP(cpu);
+    cpu->pc = addr(high, low);
 }
 
 static inline void rts(struct cpu* cpu)
 {
-    word_t l, h;
-    l = POP(cpu);
-    h = POP(cpu);
-    cpu->pc = (((addr_t)h << 8) | l) + 1;
+    word_t low, high;
+    low = POP(cpu);
+    high = POP(cpu);
+    cpu->pc = addr(high, low) + 1;
 }
 
 static inline void sbc(struct cpu* cpu, word_t m)
 {
     uint16_t t;
     t = cpu->acc - m - !BIT(cpu->psw, PSW_C);
-    SET_BIT(cpu->psw, PSW_N, BIT(t, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0 == (word_t)t);
+    SET_BIT(&cpu->psw, PSW_N, BIT(t, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0 == (word_t)t);
 
     //the two operands have different sign and the sign of sum if diff to acc
-    SET_BIT(cpu->psw, PSW_V,  ((cpu->acc ^ t) & 0x80) && ((cpu->acc ^ m) & 0x80) );
+    SET_BIT(&cpu->psw, PSW_V,  ((cpu->acc ^ t) & 0x80) && ((cpu->acc ^ m) & 0x80) );
     if (BIT(cpu->psw, PSW_D)) {
         if (((cpu->acc & 0x0F) - !BIT(cpu->psw, PSW_C)) < (m & 0x0F))
             t -= 6;
         if (t > 0x99)
             t -= 0x60;
     }
-    SET_BIT(cpu->psw, PSW_C, t < 0x100);
+    SET_BIT(&cpu->psw, PSW_C, t < 0x100);
     cpu->acc = (word_t)t;
 }
 
 static inline void tax(struct cpu* cpu)
 {
-    SET_BIT(cpu->psw, PSW_N, BIT(cpu->acc, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == cpu->acc);
+    SET_BIT(&cpu->psw, PSW_N, BIT(cpu->acc, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == cpu->acc);
     cpu->xr = cpu->acc;
 }
 
 static inline void tay(struct cpu* cpu)
 {
-    SET_BIT(cpu->psw, PSW_N, BIT(cpu->acc, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == cpu->acc);
+    SET_BIT(&cpu->psw, PSW_N, BIT(cpu->acc, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == cpu->acc);
     cpu->yr = cpu->acc;
 }
 
 static inline void tsx(struct cpu* cpu)
 {
-    SET_BIT(cpu->psw, PSW_N, BIT(cpu->sp, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == cpu->sp);
+    SET_BIT(&cpu->psw, PSW_N, BIT(cpu->sp, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == cpu->sp);
     cpu->xr = cpu->sp;
 }
 
 static inline void txa(struct cpu* cpu)
 {
-    SET_BIT(cpu->psw, PSW_N, BIT(cpu->xr, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == cpu->xr);
+    SET_BIT(&cpu->psw, PSW_N, BIT(cpu->xr, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == cpu->xr);
     cpu->acc = cpu->xr;
 }
 
 static inline void tya(struct cpu* cpu)
 {
-    SET_BIT(cpu->psw, PSW_N, BIT(cpu->yr, 7));
-    SET_BIT(cpu->psw, PSW_Z, 0x00 == cpu->yr);
+    SET_BIT(&cpu->psw, PSW_N, BIT(cpu->yr, 7));
+    SET_BIT(&cpu->psw, PSW_Z, 0x00 == cpu->yr);
     cpu->acc = cpu->yr;
 }
 
@@ -306,10 +362,6 @@ static inline void tya(struct cpu* cpu)
 
 int cpu6502_run(struct cpu* cpu, mem_t* mem)
 {
-
-    //const uint16_t period = 20;
-    //reset pc
-    cpu->pc = read_2byte(RESET_VECTOR_ADDR);
     print_cpu(cpu);
 
     for (; ;) {
@@ -317,18 +369,20 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
         uint16_t inst = 0;
         byte data;
         addr_t addr;
-        byte op_code = read_byte(cpu->pc++);
-        cpu->cycle_count += cpu->is[op_code].cycle;
 
-        if (2 == cpu->is[op_code].len)
-            inst = read_byte(cpu->pc);
+		//fetch
+        byte op_code = read_byte(cpu->pc);
+		ASSERT(2 == cpu->is[op_code].len || 3 == cpu->is[op_code].len);
+		if (2 == cpu->is[op_code].len)
+			inst = read_byte(cpu->pc + 1);
         else if (3 == cpu->is[op_code].len)
-            inst = read_2byte(cpu->pc);
-        cpu->pc += cpu->is[op_code].len - 1;
+            inst = read_2bytes(cpu->pc + 1);
+		//move to next instrcution
+        cpu->pc += cpu->is[op_code].len;
+		cpu->cycle_count += cpu->is[op_code].cycle;
         //printf("XR: %x  YR: %x\n", cpu->xr, cpu->yr);
         
-
-
+		//execute
         switch (op_code) {
         /******ADC******/
         case ADC_IMM:
@@ -356,12 +410,12 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
             adc(cpu, data);
             break;
         case ADC_IND_X:
-            addr = read_2byte((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             adc(cpu, data);
             break;
         case ADC_IND_Y:
-            addr = read_2byte(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             adc(cpu, data);
             break;
@@ -392,12 +446,12 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
             and(cpu, data);
             break;
         case AND_IND_X:
-            addr = read_2byte((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             and(cpu, data);
             break;
         case AND_IND_Y:
-            addr = read_2byte(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             and(cpu, data);
             break;
@@ -494,16 +548,16 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
 
         /******Clear Flag******/
         case CLC:
-            SET_BIT(cpu->psw, PSW_C, 0x00);
+            SET_BIT(&cpu->psw, PSW_C, 0x00);
             break;
         case CLD:
-            SET_BIT(cpu->psw, PSW_D, 0x00);
+            SET_BIT(&cpu->psw, PSW_D, 0x00);
             break;
         case CLI:
-            SET_BIT(cpu->psw, PSW_I, 0x00);
+            SET_BIT(&cpu->psw, PSW_I, 0x00);
             break;
         case CLV:
-            SET_BIT(cpu->psw, PSW_V, 0x00);
+            SET_BIT(&cpu->psw, PSW_V, 0x00);
             break; 
 
         /******CMP******/
@@ -512,10 +566,6 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
             cmp(cpu, data);
             {
                 int i;
-                //for (i = 0x20; i < 0x28; i++) {
-                //    printf("mem[%x] ", i);
-                //}
-                //printf("\n");
                 for (i = 0x20; i < 0x28; i++) {
                     printf("%x ", read_byte(i));
                 }
@@ -545,12 +595,12 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
             cmp(cpu, data);
             break;
         case CMP_IND_X:
-            addr = read_2byte((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             cmp(cpu, data);
             break;
         case CMP_IND_Y:
-            addr = read_2byte(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             cmp(cpu, data);
             break;
@@ -641,12 +691,12 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
             eor(cpu, data);
             break;
         case EOR_IND_X:
-            addr = read_2byte((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             eor(cpu, data);
             break;
         case EOR_IND_Y:
-            addr = read_2byte(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             eor(cpu, data);
             break;
@@ -689,7 +739,7 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
             cpu->pc = addr;
             break;
         case JMP_IND:
-            addr = read_2byte(inst & MASK(addr_t));
+            addr = read_2bytes(inst & MASK(addr_t));
             cpu->pc = addr;
             break;
 
@@ -725,12 +775,12 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
             lda(cpu, data);
             break;
         case LDA_IND_X:
-            addr = read_2byte((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             lda(cpu, data);
             break;
         case LDA_IND_Y:
-            addr = read_2byte(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             lda(cpu, data);
             break; 
@@ -834,12 +884,12 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
             ora(cpu, data);
             break;
         case ORA_IND_X:
-            addr = read_2byte((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             ora(cpu, data);
             break;
         case ORA_IND_Y:
-            addr = read_2byte(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             ora(cpu, data);
             break;
@@ -950,29 +1000,29 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
             sbc(cpu, data);
             break;
         case SBC_IND_X:
-            addr = read_2byte((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             sbc(cpu, data);
             break;
         case SBC_IND_Y:
-            addr = read_2byte(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             sbc(cpu, data);
             break;
 
         /******SEC******/
         case SEC:
-            SET_BIT(cpu->psw, PSW_C, 1);
+            SET_BIT(&cpu->psw, PSW_C, 1);
             break;
 
         /******SED******/
         case SED:
-            SET_BIT(cpu->psw, PSW_D, 1);
+            SET_BIT(&cpu->psw, PSW_D, 1);
             break;
 
         /******SEI******/
         case SEI:
-            SET_BIT(cpu->psw, PSW_I, 1);
+            SET_BIT(&cpu->psw, PSW_I, 1);
             break;
 
         /******STA******/
@@ -999,12 +1049,12 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
             break;
         case STA_IND_X:
             addr = (inst & MASK(byte)) + cpu->xr;
-            addr = read_2byte(addr);
+            addr = read_2bytes(addr);
             write_byte(addr, cpu->acc);
             break;
         case STA_IND_Y:
             addr = inst & MASK(byte);
-            addr = read_2byte(addr) + cpu->yr;
+            addr = read_2bytes(addr) + cpu->yr;
             write_byte(addr, cpu->acc);
             break; 
 
@@ -1072,16 +1122,7 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
             while(1){}
             break;
         }
+
+		//TODO: check interrupt request
     }
 }
-
-struct cpu cpu6502 = {
-    .psw = 0x20, //set the reserve bit
-    .acc = 0x00,
-    .xr = 0x00,
-    .yr = 0x00,
-    .sp = 0x01FF,   //init value of Stack Pointer
-    .pc = 0x00,
-    .cycle_count = 0x0000,
-    .is = is,
-};

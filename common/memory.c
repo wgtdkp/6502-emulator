@@ -19,7 +19,5 @@ int load_mem(addr_t start_addr, const char* filename)
         write_byte(addr, buffer & MASK(word_t));
         printf("addr: %4x,  %2x\n", addr, read_byte(addr));
     }
-    write_byte(RESET_VECTOR_ADDR, L(start_addr));
-    write_byte(RESET_VECTOR_ADDR + 1, H(start_addr));
     return (addr - start_addr);
 }
