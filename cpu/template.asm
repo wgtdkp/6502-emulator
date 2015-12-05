@@ -1,5 +1,5 @@
 
-	.ORG $8000
+	* = $8000
 NMI_ISR:
 RESET:
 	LDX #$FF ; init SP to 0x01FF
@@ -7,21 +7,10 @@ RESET:
 	CLI
 	CLD
 
-	.ORG $9000
+	* = $9000
 IRQ_ISR:
-	
 
-
-
-
-
-
-
-
-
-
-
-.ROG $FFFA
+    * = $FFFA
 NMI_VEC: .WORD NMI_ISR
 RESET_VEC: .WORD RESET
 IRQ_VEC: .WORD IRQ_ISR
