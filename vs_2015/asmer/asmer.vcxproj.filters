@@ -36,5 +36,11 @@
     <ClCompile Include="..\..\common\utility.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\common\hex_handler.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\assembler\codegen.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

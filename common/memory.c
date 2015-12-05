@@ -1,23 +1,21 @@
 #include "memory.h"
 #include "utility.h"
+#include "hex_handler.h"
 
 mem_t mem[MEM_SIZE];
 
-int load_mem(addr_t start_addr, const char* filename)
+bool load_mem(const char* filename)
 {
-    addr_t addr;
-    FILE* file = fopen(filename, "rb");
+    FILE* file = fopen(filename, "r");
     if (NULL == file) {
         error("open file '%s' failed!", filename);
-        return 0;
+        return false;
     }
-
-    for (addr = start_addr; ; addr++) {
-        uint32_t buffer;
-        if(1 != fscanf(file, "%x", &buffer))
-            break;
-        write_byte(addr, buffer & MASK(word_t));
-        printf("addr: %4x,  %2x\n", addr, read_byte(addr));
+    if (false == load(mem, file)) {
+        error("loading program failed!\n");
+        fclose(file);
+        return false;
     }
-    return (addr - start_addr);
+    fclose(file);
+    return true;
 }

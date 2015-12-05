@@ -13,11 +13,13 @@
 #define L(addr)     ((addr) & 0x00FF)
 
 /******memory map******/
-#define SP_OFFSET	PAGE_SIZE
+#define SP_BEGIN	(0x0100)
+#define SP_END      (RAM_BEGIN - 1)
 
-#define RAM_OFFSET	(0x0200)
+#define RAM_BEGIN	(0x0200)
+#define RAM_END     (MMIO_BEGIN - 1)
 
-#define MMIO_OFFSET	(0x4000)
+#define MMIO_BEGIN	(0x4000)
 #define GPIO_A	(0x4000)
 #define GPIO_B	(0x4001)
 #define GPIO_C	(0x4002)
@@ -35,8 +37,10 @@
 
 #define NMI		(0x4070)
 
+#define MMIO_END    (ROW_BEGIN - 1)
 
-#define ROW_OFFSET	(0x8000)
+#define ROW_BEGIN	(0x8000)
+#define ROW_END     (0xFFF9)
 
 #define NMI_VECTOR	(0xFFFA)
 #define RESET_VECTOR	(0xFFFC)
@@ -90,7 +94,6 @@ static inline addr_t addr(byte high, byte low)
 	return ((addr_t)high << 8) | low;
 }
 
-
-int load_mem(addr_t start_addr, const char* filename);
+bool load_mem(const char* filename);
 
 #endif

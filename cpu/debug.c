@@ -1,4 +1,5 @@
 #include "type.h"
+#include "utility.h"
 #include "cpu6502.h"
 #include "memory.h"
 #include <stdio.h>
@@ -29,21 +30,23 @@ void print_cpu(struct cpu* cpu)
     printf("\n");
 }
 
-
-//int main(int argc, char* argv[])
+#if defined(_MSC_VER) && defined(DEBUG)
 int main(void)
 {
 	int argc = 2;
-	char* argv[2] = {"fc", "test.hex"};
-    const addr_t start_addr = 0x8000;
+	char* argv[] = { "fc", "test.hex" };
+#else
+int main(int argc, char* argv[])
+{
+#endif
     if (argc < 2) {
         usage();
         return -1;
     }
 
-    load_mem(start_addr, argv[1]);
-
-    //print_cpu(&cpu6502);
+    if (false == load_mem(argv[1])) {
+        return -1;
+    }
 	cpu_boot(&cpu6502);
     cpu6502_run(&cpu6502, mem);
     print_cpu(&cpu6502);

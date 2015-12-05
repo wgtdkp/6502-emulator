@@ -20,16 +20,6 @@ struct cpu {
 void cpu_boot(struct cpu* cpu);
 int cpu6502_run(struct cpu* cpu, mem_t* mem);
 
-static inline uint16_t le16_to_cpu(uint16_t le16)
-{
-	return (((le16 & 0x00FF) << 8) | ((le16 & 0xFF00) >> 8));
-}
-
-static inline uint16_t cpu_to_le16(uint16_t cpu16)
-{
-	return le16_to_cpu(cpu16);
-}
-
 static inline uint8_t BCD(uint8_t byte)
 {
 	return ((byte & 0x0F) + (byte >> 4) * 10);

@@ -1,5 +1,5 @@
 CFLAGS = -Wall
-SRCS = ../common/instruction.c ../common/utility.c  parser.c main.c token.c symbol.c
+SRCS = ../common/memory.c ../common/instruction.c ../common/utility.c ../common/hex_handler.c parser.c main.c token.c symbol.c codegen.c
 
 TARGET = asmer
 
@@ -12,9 +12,10 @@ $(TARGET) : $(OBJS)
 	$(CC) -o $@ $^ -lm
 
 INC = -I../common
+DEBUG = -DDEBUG
 
 %.o : %.c
-	$(CC) $(CFLAGS) $(INC) -o $@ -c $<
+	$(CC) $(CFLAGS) $(INC) $(DEBUG) -o $@ -c $<
 	
 .PHONY : clean
 clean :
