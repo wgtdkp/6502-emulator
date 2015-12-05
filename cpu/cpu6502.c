@@ -362,7 +362,7 @@ static inline void tya(struct cpu* cpu)
 
 //int cpu6502_run(struct cpu* cpu, mem_t* mem){ return 0;}
 
-int cpu6502_run(struct cpu* cpu, mem_t* mem)
+int cpu6502_run(struct cpu* cpu)
 {
     print_cpu(cpu);
 
@@ -1039,7 +1039,6 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
         case STA_ABS:
             addr = inst & MASK(addr_t);
             write_byte(addr, cpu->acc);
-            //printf("mem[%x] : %x\n", addr, read_byte(addr));
             break;
         case STA_ABS_X:
             addr = (inst & MASK(addr_t)) + cpu->xr;

@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
         return -1;
     }
 	cpu_boot(&cpu6502);
-    cpu6502_run(&cpu6502, mem);
+    cpu6502_run(&cpu6502);
     print_cpu(&cpu6502);
     return 0;
 }

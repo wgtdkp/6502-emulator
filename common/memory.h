@@ -58,36 +58,10 @@
 	typedef uint64_t addr_t;
 #endif
 
-typedef byte mem_t;
-extern mem_t mem[MEM_SIZE];
-
-static inline uint16_t read_2bytes(addr_t addr)
-{
-    uint16_t data;
-    data = mem[addr & MEM_MASK];
-    //little endian
-    data |= (uint16_t)mem[(addr+1) & MEM_MASK] << 8;
-    return data;
-}
-
-static inline byte read_byte(addr_t addr)
-{
-    return mem[addr & MEM_MASK];
-}
-
-static inline void write_byte(addr_t addr, byte data)
-{
-	//printf("MEM_MASK : %x \n", MEM_MASK);
-	//printf("addr & MEM_MASK : %x \n", addr & MEM_MASK);
-    mem[addr & MEM_MASK] = data;
-	//printf("mem[addr & MEM_MASK] : %x \n", mem[addr & MEM_MASK]);
-}
-
-static inline void write_2bytes(addr_t addr, uint16_t data)
-{
-	write_byte(addr, L(data));
-	write_byte(addr + 1, H(data));
-}
+uint16_t read_2bytes(addr_t addr);
+byte read_byte(addr_t addr);
+void write_byte(addr_t addr, byte data);
+void write_2bytes(addr_t addr, uint16_t data);
 
 static inline addr_t addr(byte high, byte low)
 {

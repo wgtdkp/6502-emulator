@@ -34,14 +34,25 @@ typedef unsigned long long uint64_t;
 #define WORD_SIZE   (8)
 
 #if WORD_SIZE == 8
-typedef uint8_t word_t;
+    typedef uint8_t word_t;
 #elif WORD_SIZE == 16
-typedef uint16_t word_t;
+    typedef uint16_t word_t;
 #elif WORD_SIZE == 32
-typedef uint32_t word_t;
+    typedef uint32_t word_t;
 #elif WORD_SIZE == 64
-typedef uint64_t word_t;
+    typedef uint64_t word_t;
 #endif
 
+#define ADDR_WIDTH  (16)
+
+#if ADDR_WIDTH == 8
+    typedef uint8_t addr_t;
+#elif ADDR_WIDTH == 16
+    typedef uint16_t addr_t;
+#elif ADDR_WIDTH == 32
+    typedef uint32_t addr_t;
+#elif ADDR_WIDTH == 64
+    typedef uint64_t addr_t;
+#endif
 
 #endif

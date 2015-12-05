@@ -18,7 +18,7 @@ struct cpu {
 };
 
 void cpu_boot(struct cpu* cpu);
-int cpu6502_run(struct cpu* cpu, mem_t* mem);
+int cpu6502_run(struct cpu* cpu);
 
 static inline uint8_t BCD(uint8_t byte)
 {

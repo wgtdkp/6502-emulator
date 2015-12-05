@@ -28,14 +28,14 @@ struct record {
     uint8_t checksum;   //checksum of the record
 } );
 
-struct record record_obuf = {
+static struct record record_obuf = {
     .len = 0,
     .addr = 0,
     .type = RECORD_TYPE_DATA,
     .checksum = 0,
 };
 
-struct record record_ibuf = {
+static struct record record_ibuf = {
     .len = 0,
     .addr = 0,
     .type = RECORD_TYPE_DATA,
@@ -45,7 +45,7 @@ struct record record_ibuf = {
 static void dump_record(FILE* code_file, const struct record* record);
 static uint8_t checksum(const struct record* record);
 static bool read_record(struct record* record,  FILE* code_file);
-static bool load_record(mem_t* mem, struct record* record);
+static bool load_record(struct record* record);
 
 static inline uint8_t record_size(const struct record* record)
 {
@@ -190,7 +190,7 @@ static bool read_record(struct record* record,  FILE* code_file)
     return true;
 }
 
-static bool load_record(mem_t* mem, struct record* record)
+static bool load_record(struct record* record)
 {
     uint8_t i;
     addr_t addr = record->addr;
@@ -202,10 +202,10 @@ static bool load_record(mem_t* mem, struct record* record)
     return true;
 }
 
-bool load(mem_t* mem, FILE* code_file)
+bool load(FILE* code_file)
 {
     while (read_record(&record_ibuf, code_file)) {
-        load_record(mem, &record_ibuf);
+        load_record(&record_ibuf);
         if (RECORD_TYPE_EOF == record_ibuf.type)
             break;
 		record_ibuf.len = 0;
