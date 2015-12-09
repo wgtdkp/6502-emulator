@@ -3,6 +3,9 @@
 #include "utility.h"
 #include "token.h"
 #include "symbol.h"
+#include "codegen.h"
+#include "hex_handler.h"
+
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
@@ -171,9 +174,6 @@ static const byte op_codes[INST_NUM][MODE_NUM] = {
 };
 
 static int parse_number(const char* liter);
-//static void dump_prep(FILE* prep_file, struct token_node* head);
-//static void dump_code(FILE* code_file, struct tk_inst* inst);
-static byte* gen_code(struct tk_inst* inst, size_t* size);
 
 #define INST_LITER_TO_INT(liter) (liter[0] << 16 | liter[1] << 8 | liter[2])
 /*
@@ -393,7 +393,7 @@ bool load_file(const char* file_name)
     return true;
 }
 
-
+/*compile asm file to hex file*/
 int parse(const char* output, const char* input)
 {
 	size_t i;
@@ -401,7 +401,7 @@ int parse(const char* output, const char* input)
 	struct token_list total_toks = { .size = 0, .tail = NULL, .head = NULL };
     char line[MAX_LINE_LEN + 1];
     FILE* asm_file = fopen(input, "r");
-    FILE* code_file = fopen(output, "wb");
+    FILE* code_file = fopen(output, "w");
 	//FILE* prep_file = fopen("prep.asm", "w+");
     if (NULL == asm_file || NULL == code_file) {
         error("open file %s failed!\n", 
@@ -409,6 +409,7 @@ int parse(const char* output, const char* input)
         return -1;
     }
 
+    /******construct symbol table******/
 	line_num = 1;
 	while (NULL != fgets(line, MAX_LINE_LEN + 1, asm_file)) {
 		int err;
@@ -430,13 +431,14 @@ int parse(const char* output, const char* input)
 	//dump_prep(prep_file, total_toks.head);
 	//fclose(prep_file);
 	
+    /******generate instructions******/
 	for (i = 0; i < 2; i++) {
 		fseek(asm_file, 0, SEEK_SET);
 		line_num = 1; pc = 0;
 		while (NULL != fgets(line, MAX_LINE_LEN + 1, asm_file)) {
 			int err;
-			byte* code;
-			size_t len_code = 0;
+			uint8_t code[3];
+			uint8_t code_len = 0;
 			struct token_list tok_list = { .size = 0,.tail = NULL,.head = NULL };
 			struct tk_inst inst = { .op_code = NOT_INST,.operand = 0 };
 			err = tokenize(&tok_list, line, line_num);
@@ -450,14 +452,16 @@ int parse(const char* output, const char* input)
 			if (PSEUDO_SPC == inst.op_code)
 				pc = inst.addr;
 			else {
-				code = gen_code(&inst, &len_code);
+				code_len = gen_code(code, &inst);
+                ASSERT(1 <= code_len && code_len <= 3);
 				if (NULL != code && 1 == i) {
-					fwrite(code, sizeof(byte), len_code, code_file);
-					free(code);
+                    dump_code(code_file, code, code_len, pc);
+					//fwrite(code, sizeof(byte), code_len, code_file);
+					//free(code);
 				}
 				if (PRAGMA_BYTE != inst.op_code \
 					&& PRAGMA_WORD != inst.op_code) {
-					pc += (addr_t)len_code;
+					pc += (addr_t)code_len;
 				}
 			}
 		END_LOOP:
@@ -466,87 +470,11 @@ int parse(const char* output, const char* input)
 		}
 	}
 
+    dump_end(code_file);
 	destroy_symb_tb(symb_tb);
     fclose(asm_file);
     fclose(code_file);
     return 0;
-}
-
-/*
-static void replace_addr(struct token_node* p)
-{
-	addr_t addr = symb_find(symb_tb, p->liter)->data;
-	free(p->liter);
-	p->len = 5;
-	p->liter = (char*)malloc(sizeof(char) * (p->len + 1));
-	sprintf(p->liter, "$%04x", addr);
-	p->liter[p->len] = 0;
-}
-*/
-
-/*
-static void dump_prep(FILE* prep_file, struct token_node* head)
-{
-	struct token_node* p;
-	for (p = head; NULL != p; p = p->next) {
-		if (TOKEN_LABEL == p->type) {
-			replace_addr(p);
-		}
-	}
-	for (p = head; NULL != p; p = p->next) {
-		fprintf(prep_file, "%s ", p->liter);
-	}
-}
-*/
-
-/*
-static void dump_code(FILE* code_file, struct tk_inst* inst)
-{
-	byte* code;
-	size_t len_code = 0;
-	
-	if (PSEUDO_SPC == inst->op_code)
-		pc = inst->addr;
-	else {
-		code = gen_code(inst, &len_code);
-		if (NULL != code) {
-			fwrite(code, sizeof(byte), len_code, code_file);
-			free(code);
-		}
-		if (PRAGMA_BYTE != inst->op_code \
-			&& PRAGMA_WORD != inst->op_code) {
-			pc += (addr_t)len_code;
-		}
-	}
-}
-*/
-
-static byte* gen_code(struct tk_inst* inst, size_t* size)
-{
-    byte* code = NULL;
-    if (PRAGMA_BYTE == inst->op_code) {
-        *size = 1;
-    } else if (PRAGMA_WORD == inst->op_code) {
-        *size = 2;
-    } else {
-        *size = is[inst->op_code].len;
-    }
-    code = (byte*)malloc(sizeof(byte) * (*size));
-    if (NULL == code)
-        return NULL;
-    if (PRAGMA_BYTE == inst->op_code)
-        code[0] = inst->lo;
-    else if (PRAGMA_WORD == inst->op_code) {
-        code[0] = inst->lo;
-        code[1] = inst->hi;
-    } else {
-        code[0] = inst->op_code;
-        if (2 <= *size)
-            code[1] = inst->lo;
-        if (3 <= *size)
-            code[2] = inst->hi;
-    }
-    return code;
 }
 
 static int parse_number(const char* liter)

@@ -29,7 +29,9 @@
 
 #define IS_COMMENTS(ch) (';' == (ch))
 
+/*
 static const char valid_chars[] = ".()#<>$%O,;*=";
+
 
 static bool is_valid_char(char ch)
 {
@@ -40,6 +42,7 @@ static bool is_valid_char(char ch)
     }
     return false;
 }
+*/
 
 /*
  * @return: the length of new string.

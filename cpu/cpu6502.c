@@ -1,5 +1,7 @@
 #include "cpu6502.h"
 #include "debug.h"
+#include "utility.h"
+
 //#include "memory.h"
 
 #define PSW_C   (0x00)	//carry
@@ -16,19 +18,19 @@ static inline void ENABLE_IRQ(struct cpu* cpu)
 	SET_BIT(&cpu->psw, PSW_I, 0);
 }
 
-static inline DISABLE_IRQ(struct cpu* cpu)
+static inline void DISABLE_IRQ(struct cpu* cpu)
 {
 	SET_BIT(&cpu->psw, PSW_I, 1);
 }
 
 static inline void PUSH(struct cpu* cpu, word_t m)
 {
-	write_byte(SP_OFFSET + cpu->sp--, m);
+	write_byte(SP_BEGIN + cpu->sp--, m);
 }
 
 static inline word_t POP(struct cpu* cpu)
 {
-	return read_byte(SP_OFFSET + (++cpu->sp));
+	return read_byte(SP_BEGIN + (++cpu->sp));
 }
 
 
@@ -360,7 +362,7 @@ static inline void tya(struct cpu* cpu)
 
 //int cpu6502_run(struct cpu* cpu, mem_t* mem){ return 0;}
 
-int cpu6502_run(struct cpu* cpu, mem_t* mem)
+int cpu6502_run(struct cpu* cpu)
 {
     print_cpu(cpu);
 
@@ -372,7 +374,7 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
 
 		//fetch
         byte op_code = read_byte(cpu->pc);
-		ASSERT(2 == cpu->is[op_code].len || 3 == cpu->is[op_code].len);
+		ASSERT(1 <= cpu->is[op_code].len || cpu->is[op_code].len <= 3);
 		if (2 == cpu->is[op_code].len)
 			inst = read_byte(cpu->pc + 1);
         else if (3 == cpu->is[op_code].len)
@@ -563,16 +565,16 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
         /******CMP******/
         case CMP_IMM:
             data = inst & MASK(byte);
-            cmp(cpu, data);
-            {
+			cmp(cpu, data);
+#ifdef DEBUG
+			{
                 int i;
                 for (i = 0x20; i < 0x28; i++) {
                     printf("%x ", read_byte(i));
                 }
                 printf("\n");
             }
-
-
+#endif
             break;
         case CMP_ZERO:
             data = read_byte(inst & MASK(byte));
@@ -1037,7 +1039,6 @@ int cpu6502_run(struct cpu* cpu, mem_t* mem)
         case STA_ABS:
             addr = inst & MASK(addr_t);
             write_byte(addr, cpu->acc);
-            //printf("mem[%x] : %x\n", addr, read_byte(addr));
             break;
         case STA_ABS_X:
             addr = (inst & MASK(addr_t)) + cpu->xr;
