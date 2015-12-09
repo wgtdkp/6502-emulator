@@ -24,7 +24,9 @@
                         || '*' == (ch) \
                         || '=' == (ch)) \
                         || '(' == (ch) \
-                        || ')' == (ch) 
+                        || ')' == (ch) \
+                        || '\n' == (ch) //'\n' is need to be added into a token list to mark the end of line
+
 #define IS_COMMENTS(ch) (';' == (ch))
 
 static const char valid_chars[] = ".()#<>$%O,;*=";
@@ -192,56 +194,54 @@ static int letter_type(const char* liter, int len)
 	return TOKEN_LABEL;
 }
 
-int tokenize(struct token_list* tok_list, char* line, int line_num)
+int tokenize(struct token_list* tk_list, char* file_buffer)
 {
     enum Status status;
-    size_t i, len;
+    size_t i, line_num;
     size_t token_begin, token_end;
-    //len = trim(line);
-    
     token_begin = 0, token_end  = 0;
     status = STATUS_INVALID;
-	len = strlen(line);
-	str_toupper(line);
+	str_toupper(file_buffer);
     /*careful: it seems an error to let "i <= len", 
       but we need one more execution to flush the last token into token_list */
-    for (i = 0; i <= len; i++) {
+    line_num = 1;
+    for (i = 0; ; i++) {
 		struct token_node* tok_node;
         switch (status) {
         case STATUS_LETTER:
-            if (!IS_LETTER(line[i]) && !IS_DIGIT(line[i])) {
+            if (!IS_LETTER(file_buffer[i]) && !IS_DIGIT(file_buffer[i])) {
                 token_end = i;
-                tok_node = create_token(TOKEN_LABEL, line + token_begin, token_end - token_begin);
+                tok_node = create_token(TOKEN_LABEL, file_buffer + token_begin, token_end - token_begin);
 				tok_node->type = letter_type(tok_node->liter, tok_node->len);
-				token_append(tok_list, tok_node);
+				token_append(tk_list, tok_node);
                 token_begin = i;
-				status = next_status(status, line[i]);
+				status = next_status(status, file_buffer[i]);
             }
             break;
         case STATUS_PUNCTUATION:
             token_end = i;
-            tok_node = create_token(line[token_begin], line + token_begin, token_end - token_begin);
-            token_append(tok_list, tok_node);
+            tok_node = create_token(file_buffer[token_begin], file_buffer + token_begin, token_end - token_begin);
+            token_append(tk_list, tok_node);
             token_begin = i;
-            status = next_status(status, line[i]);
+            status = next_status(status, file_buffer[i]);
             break;
         case STATUS_NUMBER:
-            if (!IS_NUMBER(line[i])) {
+            if (!IS_NUMBER(file_buffer[i])) {
                 token_end = i;
-                if (!check_number(line + token_begin, token_end - token_begin)) {
+                if (!check_number(file_buffer + token_begin, token_end - token_begin)) {
                     error("invalid number format at line %d, column %d.\n", line_num, i + 1);
                     return -2;
                 }
-                tok_node = create_token(TOKEN_NUMBER, line + token_begin, token_end - token_begin);
-                token_append(tok_list, tok_node);
+                tok_node = create_token(TOKEN_NUMBER, file_buffer + token_begin, token_end - token_begin);
+                token_append(tk_list, tok_node);
                 token_begin = i;
-				status = next_status(status, line[i]);
+				status = next_status(status, file_buffer[i]);
             }
             break;
         case STATUS_BLANK:
-            if (!IS_BLANK(line[i])) {
+            if (!IS_BLANK(file_buffer[i])) {
                 token_begin = i;
-				status = next_status(status, line[i]);
+				status = next_status(status, file_buffer[i]);
             }
             break;
         case STATUS_COMMENTS:
@@ -249,13 +249,17 @@ int tokenize(struct token_list* tok_list, char* line, int line_num)
             break;
         case STATUS_INVALID:
             token_begin = i;
-            status = next_status(status, line[i]);
-			if (STATUS_INVALID == status && 0 != line[i]) {
+            status = next_status(status, file_buffer[i]);
+			if (STATUS_INVALID == status && 0 != file_buffer[i]) {
 				error("invalid format at line %d\n", line_num);
 				return -3;
 			}
             break;
         }
+        if (0 == file_buffer[i])
+            break;
+        else if ('\n' == file_buffer[i])
+            ++line_num;
     }
 
     return 0;

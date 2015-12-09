@@ -196,32 +196,26 @@ int find_inst(const char* liter)
     return -1;
 }
 
-static bool match(const struct token_node* head, ...)
+static bool match(const struct token_list* tk_list, ...)
 {
-    size_t i;
 	byte type;
 	va_list args;
-	va_start(args, head);
-    const struct token_node* p = head;
-	//type = va_arg(args, byte);
-    type = va_arg(args, uint32_t);
-    for (i = 0; 0 != type && NULL != p; i++) {
-        if (type != p->type)
-            return false;
-        p = p->next;
-		//type = va_arg(args, byte);
+	va_start(args, tk_list);
+    const struct token_node* p;
+    for (p = tk_list->head; p != tk_list->tail; p = p->next) {
         type = va_arg(args, uint32_t);
+        if (0 == type || type != p->type)
+            return false;
     }
-    return (0 == type && NULL == p);   //both of them are NULL(0)
+    return (0 == type && tk_list->tail == p);   //both of them are NULL(0)
 }
 
-static int build_symb_tb(struct token_node* head, size_t line_num)
+static int build_symb_tb(struct token_list* tk_list, size_t line_num)
 {
 	char* symb = NULL;
-	if (NULL == head)
-		return 0;
-
-	if (match(head, TOKEN_LABEL, '=', TOKEN_NUMBER, TOKEN_NULL)) {
+    const token_node* head = tk_list->head;
+	ASSERT(tk_list != 0 && head != 0);
+	if (match(tk_list, TOKEN_LABEL, '=', TOKEN_NUMBER, TOKEN_NULL)) {
 		//TODO: insert into symbol table
 		symb = token_offset(head, 2)->liter;
 		uint16_t data = (uint16_t)parse_number(symb);
@@ -374,6 +368,31 @@ INST_ADDRESSING_ERROR:
     error("Line %d, instrction %s addressing mode error.\n", line_num, head->liter);
     return -2;
 }
+
+static char* file_buffer = NULL;
+bool load_file(const char* file_name)
+{
+    long file_len;
+    FILE* fp = fopen(file_name, "r");
+    if ( NULL == fp) {
+        error("open file %s failed!\n", file_name);
+        return false;
+    }
+    fseek( fp, 0, SEEK_END );
+    file_len = ftell( fp );
+    fseek( fp, 0, SEEK_SET );
+
+    file_buffer = (char*)malloc(sizeof(char) * (file_len + 1));
+    if (NULL == file_buffer) {
+        error("file %s is too big!\n", file_name);
+        return false;
+    }
+
+    fread(file_buffer, sizeof(char), file_len + 1, fp);
+    file_buffer[file_len] = 0;
+    return true;
+}
+
 
 int parse(const char* output, const char* input)
 {

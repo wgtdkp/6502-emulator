@@ -32,8 +32,6 @@ struct tk_inst {
     };
 };
 
-
-
 struct token_node {
 	struct {
 		int type;
@@ -53,7 +51,7 @@ int trim(char* str);
 struct token_node* create_token(int type, const char* liter, size_t len);
 void destroy_token(struct token_node** head);
 void token_append(struct token_list* tok_list, struct token_node* tok_node);
-int tokenize(struct token_list* tok_list, char* line, int line_num);
+int tokenize(struct token_list* tk_list, char* file_buffer);
 void str_toupper(char* str);
 struct token_node* token_offset(struct token_node* head, size_t n);
 
