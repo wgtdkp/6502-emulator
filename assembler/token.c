@@ -28,6 +28,8 @@
 
 #define IS_COMMENTS(ch) (';' == (ch))
 
+static int parse_number(const char* liter);;
+
 /*
 static const char valid_chars[] = ".()#<>$%O,;*=";
 
@@ -116,7 +118,8 @@ const struct token_node* token_offset(const struct token_node* head, size_t n)
 
 void print_token(const struct token_node* tk)
 {
-	for (size_t i = 0; i < tk->len; i++)
+    size_t i;
+	for (i = 0; i < tk->len; i++)
 		printf("%c", tk->liter[i]);
 }
 
@@ -155,6 +158,41 @@ static bool check_number(const char* str, size_t len)
     }
     return ('0' == stat);    
 }
+
+static int parse_number(const char* liter)
+{
+	size_t i = 0;
+	int res;
+	char hl = 0;
+	int base = 10;
+
+	if ('<' == liter[i]) {
+		hl = 'L';
+		++i;
+	} else if ('>' == liter[i]) {
+		hl = 'H';
+		++i;
+	}
+
+	if ('$' == liter[i]) {
+		base = 16;
+		++i;
+	} else if ('%' == liter[i]) {
+		base = 2;
+		++i;
+	} else if ('O' == liter[i]) {
+		base = 8;
+		++i;
+	}
+
+	res = strtol(liter + i, NULL, base);
+	if ('L' == hl)
+		res = L(res);
+	else if ('H' == hl)
+		res = H(res);
+	return res;
+}
+
 
 enum Status {
     STATUS_INVALID = 0,
@@ -271,6 +309,7 @@ int tokenize(struct token_list* tk_list, char* file_buffer)
                     return -2;
                 }
                 tok_node = create_token(TOKEN_NUMBER, file_buffer + token_begin, token_end - token_begin);
+				tok_node->data = parse_number(tok_node->liter);
                 token_append(tk_list, tok_node);
                 token_begin = i;
 				status = next_status(status, file_buffer[i]);

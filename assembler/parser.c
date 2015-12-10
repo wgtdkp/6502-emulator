@@ -173,7 +173,6 @@ static const byte op_codes[INST_NUM][MODE_NUM] = {
 /*TYA*/ {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x98, 0xFF, 0xFF, 0xFF, 0xFF},
 };
 
-static int parse_number(const char* liter);
 static int pass(const struct token_list* tk_list, FILE* code_file);
 
 #define INST_LITER_TO_INT(liter) (liter[0] << 16 | liter[1] << 8 | liter[2])
@@ -197,15 +196,20 @@ int find_inst(const char* liter)
     return -1;
 }
 
-static bool match(const struct token_list* tk_list, ...)
+static bool match(struct token_list* tk_list, ...)
 {
 	byte type;
 	va_list args;
 	va_start(args, tk_list);
 	type = va_arg(args, uint32_t);
-    const struct token_node* p;
+    struct token_node* p;
     for (p = tk_list->head; p != tk_list->tail; p = p->next) {
-        if (0 == type || type != p->type)
+		if (TOKEN_LABEL == p->type && TOKEN_NUMBER == type) {//treats equal
+			struct symb_node* label;
+			label = symb_find(p->liter, p->len);
+			if (NULL != label)
+				p->data = label->data;
+		} else if (0 == type || type != p->type)
             return false;
 		type = va_arg(args, uint32_t);
     }
@@ -228,19 +232,18 @@ static int build_symb_tb(const struct token_list* tk_list)
 
         if (match(&tk_line, TOKEN_LABEL, '=', TOKEN_NUMBER, TOKEN_NULL)) {
             //TODO: insert into symbol table
-			const char* symb = NULL;
-            symb = token_offset(tk_list->head, 2)->liter;
-            uint16_t data = (uint16_t)parse_number(symb);
-			if (NULL != symb_find(symb)) {
-				error("Line %d, symbol %s redefined.\n", line_num, symb);
+			if (NULL != symb_find(head->liter, head->len)) {
+				error("Line %d, symbol redefined.\n", line_num);
+				
+				print_symb_tb();
 				return -1;
 			}
-            symb_insert(head->liter, head->len, data);
+            symb_insert(head->liter, head->len, token_offset(head, 2)->data);
         } else if (TOKEN_LABEL == head->type) {
             //TODO: insert into symbol table
             //TODO: check if any instruction followed
-			if (NULL != symb_find(head->liter)) {
-				error("Line %d, symbol %s redefined.\n", line_num, head->liter);
+			if (NULL != symb_find(head->liter, head->len)) {
+				error("Line %d, symbol redefined.\n", line_num);
 				return -1;
 			}
             symb_insert(head->liter, head->len, pc);   //wrong data! pc is always zero
@@ -252,6 +255,7 @@ static int build_symb_tb(const struct token_list* tk_list)
 			tail = tail->next;
 		head = tail;
     }
+	print_symb_tb();
 	return 0;	
 }
 
@@ -270,49 +274,19 @@ static int gen_inst(struct token_inst* inst, struct token_list* tk_list, size_t 
 	if (NULL == tk_list || NULL == tk_list->head) 
 		return 0;
 
-    if (match(tk_list, '*', '=', TOKEN_NUMBER, TOKEN_NULL)) {
-        inst->op_code = PSEUDO_SPC;
-        inst->operand = (addr_t)parse_number(token_offset(tk_list->head, 2)->liter);
-    } else if (match(tk_list, TOKEN_PRAGMA_BYTE, TOKEN_NUMBER, TOKEN_NULL)) {
-        inst->op_code = PRAGMA_BYTE;
-        inst->lo = (byte)parse_number(token_offset(tk_list->head, 1)->liter);
-    } else if (match(tk_list, TOKEN_PRAGMA_WORD, TOKEN_NUMBER, TOKEN_NULL)) {
-        inst->op_code = PRAGMA_WORD;
-        inst->operand = (uint16_t)parse_number(token_offset(tk_list->head, 1)->liter);
-    } else if (match(tk_list, TOKEN_PRAGMA_END, TOKEN_NULL)) {
-		return TERMINAL;
-	} else if (match(tk_list, TOKEN_LABEL, '=', TOKEN_NUMBER, TOKEN_NULL)) {
-        //TODO: insert into symbol table
-        uint16_t data = (uint16_t)parse_number(token_offset(tk_list->head, 2)->liter);
-        symb_insert(tk_list->head->liter, tk_list->head->len, data);
-    } else if (TOKEN_LABEL == tk_list->head->type) {
-        //TODO: insert into symbol table
-        //TODO: check if any instruction followed
-        symb_insert(tk_list->head->liter, tk_list->head->len, pc);
-		tk_list->head = tk_list->head->next;
-        return gen_inst(inst, tk_list, line_num);
-    } else if (TOKEN_INST == tk_list->head->type) {
-        uint8_t mode;
-        int inst_index = find_inst(tk_list->head->liter);
+	if (TOKEN_INST == tk_list->head->type) {
+		uint8_t mode;
+		int inst_index = find_inst(tk_list->head->liter);
 
-        if (match(tk_list, TOKEN_INST, TOKEN_NULL)) {
-            mode = ADDR_IMP; 
-        } else if (match(tk_list, TOKEN_INST, TOKEN_SYMB_A, TOKEN_NULL)) {
-            mode = ADDR_ACC;
-        } else if (match(tk_list, TOKEN_INST, '#', TOKEN_NUMBER, TOKEN_NULL)) {
-            mode = ADDR_IMM;
-            inst->lo = (byte)parse_number(token_offset(tk_list->head, 2)->liter);
-        } else if (match(tk_list, TOKEN_INST, '#', TOKEN_LABEL, TOKEN_NULL)) {
-            mode = ADDR_IMM;
-            symb = symb_find(token_offset(tk_list->head, 2)->liter);
-            if (NULL == symb) {
-                error("Line %d, undefined symbol '%s' \n", 
-                    line_num, token_offset(tk_list->head, 2)->liter);
-                return -2;
-            }
-            inst->lo = (byte)(symb->data); //retrieve from symbol table
-        } else if (match(tk_list, TOKEN_INST, TOKEN_NUMBER, TOKEN_NULL)) {
-			uint16_t data = parse_number(token_offset(tk_list->head, 1)->liter);
+		if (match(tk_list, TOKEN_INST, TOKEN_NULL)) {
+			mode = ADDR_IMP;
+		} else if (match(tk_list, TOKEN_INST, TOKEN_SYMB_A, TOKEN_NULL)) {
+			mode = ADDR_ACC;
+		} else if (match(tk_list, TOKEN_INST, '#', TOKEN_NUMBER, TOKEN_NULL)) {
+			mode = ADDR_IMM;
+			inst->lo = (byte)(token_offset(tk_list->head, 2)->data);
+		} else if (match(tk_list, TOKEN_INST, TOKEN_NUMBER, TOKEN_NULL)) {
+			uint16_t data = token_offset(tk_list->head, 1)->data;
 			if (0 == is_branch(tk_list->head)) {
 				mode = ADDR_ABS;
 				inst->operand = data;
@@ -320,70 +294,72 @@ static int gen_inst(struct token_inst* inst, struct token_list* tk_list, size_t 
 				mode = ADDR_REL;
 				inst->lo = data - (pc + 2);	//branch instructions are all 2 bytes len
 			}
-        } else if (match(tk_list, TOKEN_INST, TOKEN_NUMBER, ',', TOKEN_SYMB_X, TOKEN_NULL)) {
-            mode = ADDR_ABS_X;
-            inst->operand = (uint16_t)parse_number(token_offset(tk_list->head, 1)->liter);
-        } else if (match(tk_list, TOKEN_INST, TOKEN_NUMBER, ',', TOKEN_SYMB_Y, TOKEN_NULL)) {
-            mode = ADDR_ABS_Y;
-            inst->operand = (uint16_t)parse_number(token_offset(tk_list->head, 1)->liter);
-        } else if (match(tk_list, TOKEN_INST, '*', TOKEN_NUMBER, TOKEN_NULL)) {
-            mode = ADDR_ZERO;
-            inst->lo = (byte)parse_number(token_offset(tk_list->head, 2)->liter);
-        } else if (match(tk_list, TOKEN_INST, '*', TOKEN_NUMBER, ',', TOKEN_SYMB_X, TOKEN_NULL)) {
-            mode = ADDR_ZERO_X;
-            inst->lo = (byte)parse_number(token_offset(tk_list->head, 2)->liter);
-        } else if (match(tk_list, TOKEN_INST, '*', TOKEN_NUMBER, ',', TOKEN_SYMB_Y, TOKEN_NULL)) {
-            mode = ADDR_ZERO_Y;
-            inst->lo = (byte)parse_number(token_offset(tk_list->head, 2)->liter);
-        } else if (match(tk_list, TOKEN_INST, '(', TOKEN_NUMBER, ',', TOKEN_SYMB_X, ')', TOKEN_NULL)) {
-            mode = ADDR_IND_X;
-            inst->lo = (byte)parse_number(token_offset(tk_list->head, 2)->liter);
-        } else if (match(tk_list, TOKEN_INST, '(', TOKEN_LABEL, ',', TOKEN_SYMB_X, ')', TOKEN_NULL)) {
-            mode = ADDR_IND_X;
-            symb = symb_find(token_offset(tk_list->head, 2)->liter);
-            if (NULL == symb) {
-                error("Line %d, undefined symbol '%s' \n", 
-                    line_num, token_offset(tk_list->head, 2)->liter);
-                return -2;
-            }
-            inst->lo = (byte)(symb->data); //retrieve from symbol table
-        } else if (match(tk_list, TOKEN_INST, '(', TOKEN_NUMBER, ')', ',', TOKEN_SYMB_Y, TOKEN_NULL)) {
-            mode = ADDR_IND_Y;
-            inst->lo = (byte)parse_number(token_offset(tk_list->head, 2)->liter);
-        } else if (match(tk_list, TOKEN_INST, '(', TOKEN_NUMBER, ')', TOKEN_NULL)) {
-            mode = ADDR_IND;
-            inst->operand = (uint16_t)parse_number(token_offset(tk_list->head, 2)->liter);
-        } else if (match(tk_list, TOKEN_INST, TOKEN_LABEL, TOKEN_NULL)) {
-			symb = symb_find(token_offset(tk_list->head, 1)->liter);
-            if (NULL == symb) {
-                error("Line %d, undefined symbol '%s' \n", 
-                    line_num, token_offset(tk_list->head, 1)->liter);
-                return -2;
-            }
-			if (0 == is_branch(tk_list->head)) {
-				mode = ADDR_ABS;
-				inst->operand = (uint16_t)(symb->data);
-			} else {
-				mode = ADDR_REL;
-				inst->lo = (uint16_t)(symb->data) - (pc + 2);	//branch instructions are all 2 bytes len
-			}
-        } else {
-            error("Line %d, invalid format of instruction '%s'\n", line_num, tk_list->head->liter);
+		} else if (match(tk_list, TOKEN_INST, TOKEN_NUMBER, ',', TOKEN_SYMB_X, TOKEN_NULL)) {
+			mode = ADDR_ABS_X;
+			inst->operand = token_offset(tk_list->head, 1)->data;
+		} else if (match(tk_list, TOKEN_INST, TOKEN_NUMBER, ',', TOKEN_SYMB_Y, TOKEN_NULL)) {
+			mode = ADDR_ABS_Y;
+			inst->operand = token_offset(tk_list->head, 1)->data;
+		} else if (match(tk_list, TOKEN_INST, '*', TOKEN_NUMBER, TOKEN_NULL)) {
+			mode = ADDR_ZERO;
+			inst->lo = (byte)(token_offset(tk_list->head, 2)->data);
+		} else if (match(tk_list, TOKEN_INST, '*', TOKEN_NUMBER, ',', TOKEN_SYMB_X, TOKEN_NULL)) {
+			mode = ADDR_ZERO_X;
+			inst->lo = (byte)(token_offset(tk_list->head, 2)->data);
+		} else if (match(tk_list, TOKEN_INST, '*', TOKEN_NUMBER, ',', TOKEN_SYMB_Y, TOKEN_NULL)) {
+			mode = ADDR_ZERO_Y;
+			inst->lo = (byte)(token_offset(tk_list->head, 2)->data);
+		} else if (match(tk_list, TOKEN_INST, '(', TOKEN_NUMBER, ',', TOKEN_SYMB_X, ')', TOKEN_NULL)) {
+			mode = ADDR_IND_X;
+			inst->lo = (byte)(token_offset(tk_list->head, 2)->data);
+		} else if (match(tk_list, TOKEN_INST, '(', TOKEN_NUMBER, ')', ',', TOKEN_SYMB_Y, TOKEN_NULL)) {
+			mode = ADDR_IND_Y;
+			inst->lo = (byte)(token_offset(tk_list->head, 2)->data);
+		} else if (match(tk_list, TOKEN_INST, '(', TOKEN_NUMBER, ')', TOKEN_NULL)) {
+			mode = ADDR_IND;
+			inst->operand = token_offset(tk_list->head, 2)->data;
+		} else {
+			error("Line %d, invalid format of instruction\n", line_num);
 			return -2;
-        }
-
-        byte op_code = op_codes[inst_index][mode];
-        if (NOT_INST == op_code)
-            goto INST_ADDRESSING_ERROR;
-        inst->op_code = op_code;
-    } else {
+		}
+		byte op_code = op_codes[inst_index][mode];
+		if (NOT_INST == op_code)
+			goto INST_ADDRESSING_ERROR;
+		inst->op_code = op_code;
+	} else if (match(tk_list, '*', '=', TOKEN_NUMBER, TOKEN_NULL)) {
+        inst->op_code = PSEUDO_SPC;
+        inst->operand = token_offset(tk_list->head, 2)->data;
+    } else if (match(tk_list, TOKEN_PRAGMA_BYTE, TOKEN_NUMBER, TOKEN_NULL)) {
+        inst->op_code = PRAGMA_BYTE;
+        inst->lo = (uint8_t)(token_offset(tk_list->head, 1)->data);
+    } else if (match(tk_list, TOKEN_PRAGMA_WORD, TOKEN_NUMBER, TOKEN_NULL)) {
+        inst->op_code = PRAGMA_WORD;
+        inst->operand = token_offset(tk_list->head, 1)->data;
+    } else if (match(tk_list, TOKEN_PRAGMA_END, TOKEN_NULL)) {
+		return TERMINAL;
+	} else if (match(tk_list, TOKEN_LABEL, '=', TOKEN_NUMBER, TOKEN_NULL)) {
+        //TODO: insert into symbol table
+        uint16_t data = token_offset(tk_list->head, 2)->data;
+        symb_insert(tk_list->head->liter, tk_list->head->len, data);
+		inst->op_code = NOT_INST;
+    } else if (match(tk_list, TOKEN_LABEL, '=', '*', TOKEN_NULL)) {
+		//TODO: insert into symbol table
+		symb_insert(tk_list->head->liter, tk_list->head->len, pc);
+		inst->op_code = NOT_INST;
+	}else if (TOKEN_LABEL == tk_list->head->type) {
+        //TODO: insert into symbol table
+        //TODO: check if any instruction followed
+        symb_insert(tk_list->head->liter, tk_list->head->len, pc);
+		tk_list->head = tk_list->head->next;
+        return gen_inst(inst, tk_list, line_num);
+    } else  {
         error("Line %d, invalid format\n", line_num);
         return -1;
     }
 
 	return 0;
 INST_ADDRESSING_ERROR:
-    error("Line %d, instrction %s addressing mode error.\n", line_num, tk_list->head->liter);
+    error("Line %d, instrction addressing mode error\n", line_num);
     return -2;
 }
 
@@ -490,39 +466,3 @@ static int pass(const struct token_list* tk_list, FILE* code_file)
 	return err;
 }
 
-static int parse_number(const char* liter)
-{
-	size_t i = 0;
-	int res;
-	char hl = 0;
-	int base = 10;
-
-	if ('<' == liter[i]) {
-		hl = 'L';
-		++i;
-	}
-	else if ('>' == liter[i]) {
-		hl = 'H';
-		++i;
-	}
-
-	if ('$' == liter[i]) {
-		base = 16;
-		++i;
-	}
-	else if ('%' == liter[i]) {
-		base = 2;
-		++i;
-	}
-	else if ('O' == liter[i]) {
-		base = 8;
-		++i;
-	}
-
-	res = strtol(liter + i, NULL, base);
-	if ('L' == hl)
-		res = L(res);
-	else if ('H' == hl)
-		res = H(res);
-	return res;
-}

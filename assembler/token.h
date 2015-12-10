@@ -37,6 +37,7 @@ struct token_node {
 		int type;
 		size_t len;
 		const char* liter;
+		uint16_t data;	//only used by the number token
 	};
     struct token_node* next;
 };

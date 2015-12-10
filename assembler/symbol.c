@@ -22,11 +22,11 @@ static struct symb_node* create_symb(uint16_t data, const char* liter, size_t le
     return ret;
 }
 
-static struct symb_node* __symb_find(struct symb_node* root, const char* symb)
+static struct symb_node* __symb_find(struct symb_node* root, const char* symb, size_t len)
 {
     int cmp;
     while (NULL != root) {
-        cmp = strncmp(symb, root->liter, root->len);
+        cmp = strncmp(symb, root->liter, len);
         if (0 == cmp)
             return root;
         if (0 > cmp)
@@ -37,9 +37,9 @@ static struct symb_node* __symb_find(struct symb_node* root, const char* symb)
     return NULL;
 }
 
-struct symb_node* symb_find(const char* symb)
+struct symb_node* symb_find(const char* symb, size_t len)
 {
-	return __symb_find(symb_tb, symb);
+	return __symb_find(symb_tb, symb, len);
 }
 
 static struct symb_node* __symb_insert(struct symb_node* root, const char* symb, size_t len, uint16_t data)
@@ -80,4 +80,29 @@ void destroy_symb_tb(void)
 {
 	__destroy_symb_tb(symb_tb);
 }
+
+static void print_symb(const struct symb_node* symb)
+{
+	size_t i;
+	for (i = 0; i < symb->len; i++)
+		printf("%c", symb->liter[i]);
+	printf("\t%#04X", symb->data);
+}
+
+static void __print_symb_tb(const struct symb_node* root)
+{
+	if (NULL == root)
+		return;
+	__print_symb_tb(root->left);
+	__print_symb_tb(root->right);
+	print_symb(root);
+	printf("\n");
+}
+
+void print_symb_tb(void)
+{
+	__print_symb_tb(symb_tb);
+}
+
+
 

@@ -37,10 +37,10 @@
 
 #define NMI		(0x4070)
 
-#define MMIO_END    (ROW_BEGIN - 1)
+#define MMIO_END    (ROM_BEGIN - 1)
 
-#define ROW_BEGIN	(0x8000)
-#define ROW_END     (0xFFF9)
+#define ROM_BEGIN	(0x8000)
+#define ROM_END     (0xFFF9)
 
 #define NMI_VECTOR	(0xFFFA)
 #define RESET_VECTOR	(0xFFFC)

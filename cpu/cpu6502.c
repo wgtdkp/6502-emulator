@@ -33,13 +33,9 @@ static inline word_t POP(struct cpu* cpu)
 	return read_byte(SP_BEGIN + (++cpu->sp));
 }
 
-
 void cpu_boot(struct cpu* cpu)
 {
 	DISABLE_IRQ(cpu);
-#ifdef DEBUG
-	write_2bytes(RESET_VECTOR, 0x8000);
-#endif
 	cpu->pc = read_2bytes(RESET_VECTOR);
 }
 
