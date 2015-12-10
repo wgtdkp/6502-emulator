@@ -271,13 +271,14 @@
 
 #define IS_SIZE (256)
 
-
 struct inst {
     //word_t op_code; //operation code
     uint8_t cycle;  //instrcution cycle
     uint8_t len;     //instrcution length
 };
 
-extern const struct inst is[IS_SIZE];
+//extern const struct inst is[IS_SIZE];
+const struct inst* get_inst(uint8_t op_code);
+
 
 #endif

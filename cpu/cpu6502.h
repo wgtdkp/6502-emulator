@@ -13,7 +13,6 @@ struct cpu {
     word_t yr;  //Y Register
     word_t sp;  //Stack Pointer, one page size
     addr_t pc;  //Program Counter
-    const struct inst* is;  //instruction set
     uint16_t cycle_count;   //cycles
 };
 

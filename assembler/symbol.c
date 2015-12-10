@@ -1,37 +1,32 @@
 #include "symbol.h"
+#include "utility.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-struct symb_node* symb_tb = NULL;
+static struct symb_node* symb_tb = NULL;
 
-static struct symb_node* create_symb(uint16_t data, const char* liter)
+static struct symb_node* create_symb(uint16_t data, const char* liter, size_t len)
 {
-    size_t len;
     struct symb_node* ret = NULL;
     ret = (struct symb_node*)malloc(sizeof(struct symb_node));
-    if (NULL == ret)
-        return NULL;
-    
-    len = strlen(liter);
-    ret->liter = (char*)malloc(sizeof(char) * (len + 1));
-    if (NULL == ret->liter) {
-        free(ret);
-        return NULL;
-    }
-    memcpy((void*)ret->liter, liter, sizeof(char) * len);
-	ret->liter[len] = 0;
+	if (NULL == ret) {
+		error("memory running out!\n");
+		return NULL;
+	}
+	ret->liter = liter;
+	ret->len = len;
     ret->data = data;
     ret->left = NULL;
     ret->right = NULL;
     return ret;
 }
 
-struct symb_node* symb_find(struct symb_node* root, const char* symb)
+static struct symb_node* __symb_find(struct symb_node* root, const char* symb)
 {
     int cmp;
     while (NULL != root) {
-        cmp = strcmp(symb, root->liter);
+        cmp = strncmp(symb, root->liter, root->len);
         if (0 == cmp)
             return root;
         if (0 > cmp)
@@ -42,32 +37,47 @@ struct symb_node* symb_find(struct symb_node* root, const char* symb)
     return NULL;
 }
 
-struct symb_node* symb_insert(struct symb_node* root, const char* symb, uint16_t data)
+struct symb_node* symb_find(const char* symb)
+{
+	return __symb_find(symb_tb, symb);
+}
+
+static struct symb_node* __symb_insert(struct symb_node* root, const char* symb, size_t len, uint16_t data)
 {
     int cmp;
     struct symb_node* ret = NULL;
     if (NULL == root) {
-        ret = create_symb(data, symb);
+        ret = create_symb(data, symb, len);
         return ret;
     }
-    cmp = strcmp(symb, root->liter);
+    cmp = strncmp(symb, root->liter, root->len);
     if (0 == cmp) {
         root->data = data;
     } else if (0 > cmp) {
-        root->left = symb_insert(root->left, symb, data);
+        root->left = __symb_insert(root->left, symb, len, data);
     } else {
-        root->right = symb_insert(root->right, symb, data);
+        root->right = __symb_insert(root->right, symb, len, data);
     }
     return root;
 }
 
-void destroy_symb_tb(struct symb_node* root)
+void symb_insert(const char* symb, size_t len, uint16_t data)
+{
+	symb_tb = __symb_insert(symb_tb, symb, len, data);
+}
+
+static void __destroy_symb_tb(struct symb_node* root)
 {
     if (NULL == root)
         return;
-    destroy_symb_tb(root->left);
-    destroy_symb_tb(root->right);
-    free(root->liter);
+    __destroy_symb_tb(root->left);
+    __destroy_symb_tb(root->right);
+    //free(root->liter);
     free(root);
+}
+
+void destroy_symb_tb(void)
+{
+	__destroy_symb_tb(symb_tb);
 }
 

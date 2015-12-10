@@ -1,6 +1,6 @@
 #include "instruction.h"
 
-const struct inst is[IS_SIZE] = {
+static const struct inst is[IS_SIZE] = {
 /*********ADC*********/
     [ADC_IMM].len = 2,
     [ADC_IMM].cycle = 2,
@@ -510,3 +510,8 @@ const struct inst is[IS_SIZE] = {
     [TYA].len = 1,
     [TYA].cycle = 2,
 };
+
+const struct inst* get_inst(uint8_t op_code)
+{
+    return &is[op_code];
+}

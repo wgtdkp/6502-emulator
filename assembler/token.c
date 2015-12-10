@@ -17,15 +17,14 @@
                         || '_' == (ch))
 #define IS_BLANK(ch)    (' ' == (ch) \
                     || '\t' == (ch) \
-                    || '\n' == (ch) \
                     || '\r' == (ch))
 #define IS_PUNCTUATION(ch) (',' == (ch) \
                         || '#' == (ch) \
                         || '*' == (ch) \
-                        || '=' == (ch)) \
+                        || '=' == (ch) \
                         || '(' == (ch) \
                         || ')' == (ch) \
-                        || '\n' == (ch) //'\n' is need to be added into a token list to mark the end of line
+                        || '\n' == (ch)) //'\n' is need to be added into a token list to mark the end of line
 
 #define IS_COMMENTS(ch) (';' == (ch))
 
@@ -63,21 +62,22 @@ int trim(char* str)
     return MAX(0, end - begin);
 }
 
+/*
+as this function use the pointer directly(does not make a copy), it is
+not the destroy_token that should free liter.so don't try to create a 
+token that its liter is not in the file buffer.
+*/
 struct token_node* create_token(int type, const char* liter, size_t len)
 {
     struct token_node* tok;
     tok = (struct token_node*)malloc(sizeof(struct token_node));
-    if (NULL == tok)
-        return NULL;
-    tok->liter = (char*)malloc(sizeof(char) * (len + 1));
-    if (NULL == tok->liter) {
-        free(tok);
+    if (NULL == tok) {
+        error("memory running out!\n");
         return NULL;
     }
     tok->type = type;
     tok->len = len;
-    memcpy(tok->liter, liter, len);
-	tok->liter[len] = 0;
+    tok->liter = liter;
     tok->next = NULL;
     return tok;
 }
@@ -88,32 +88,36 @@ void destroy_token(struct token_node** head)
     struct token_node odd;
     odd.next = *head;
     for (p = odd.next; NULL != p;) {
-		struct token_node* tmp = p->next;
-		free(p->liter);
+		struct token_node* nextp = p->next;
         free(p);
-		p = tmp;
+		p = nextp;
     }
     *head = NULL;
 }
 
-void token_append(struct token_list* tok_list, struct token_node* tok_node)
+void token_append(struct token_list* tk_list, struct token_node* tok_node)
 {
-    if (NULL == tok_list || NULL == tok_node)
+    if (NULL == tk_list || NULL == tok_node)
         return;
-    if (NULL == tok_list->head)
-        tok_list->head = tok_node;
+    if (NULL == tk_list->head)
+        tk_list->head = tok_node;
     else
-        tok_list->tail->next = tok_node;
-    tok_list->tail = tok_node;
-    ++tok_list->size;
+        tk_list->tail->next = tok_node;
+    tk_list->tail = tok_node;
 }
 
-struct token_node* token_offset(struct token_node* head, size_t n)
+const struct token_node* token_offset(const struct token_node* head, size_t n)
 {
-    struct token_node* p = head;
+   const struct token_node* p = head;
     for (; 0 != n && NULL != p; n--)
         p = p->next;
     return p;
+}
+
+void print_token(const struct token_node* tk)
+{
+	for (size_t i = 0; i < tk->len; i++)
+		printf("%c", tk->liter[i]);
 }
 
 
@@ -159,16 +163,21 @@ enum Status {
     STATUS_NUMBER,
     STATUS_BLANK,
     STATUS_COMMENTS,
+	STATUS_PRAGMA,
 };
 
 static enum Status next_status(enum Status current_status, char ch)
 {
     enum Status next_status;
-    if (STATUS_COMMENTS == current_status)
+	if ('\n' == ch)
+		return STATUS_PUNCTUATION;
+    else if (STATUS_COMMENTS == current_status)
         return STATUS_COMMENTS;
 
-    if (IS_LETTER(ch))
-        next_status = STATUS_LETTER;
+	if (IS_LETTER(ch))
+		next_status = STATUS_LETTER;
+	else if ('.' == ch)
+		next_status = STATUS_PRAGMA;
     else if (IS_PUNCTUATION(ch))
         next_status = STATUS_PUNCTUATION;
     else if (IS_NUMBER(ch))
@@ -182,7 +191,7 @@ static enum Status next_status(enum Status current_status, char ch)
     return next_status;
 }
 
-static int letter_type(const char* liter, int len)
+static int letter_type(const char* liter, size_t len)
 {
 	if (3 == len && is_inst(liter)) {
 		return TOKEN_INST;
@@ -195,6 +204,17 @@ static int letter_type(const char* liter, int len)
 			return TOKEN_SYMB_Y;
 	}
 	return TOKEN_LABEL;
+}
+
+static int pragma_type(const char* liter, size_t len)
+{
+	if (0 == strncmp(".BYTE", liter, 5))
+		return TOKEN_PRAGMA_BYTE;
+	else if (0 == strncmp(".WORD", liter, 5))
+		return TOKEN_PRAGMA_WORD;
+	else if (0 == strncmp(".END", liter, 4))
+		return TOKEN_PRAGMA_END;
+	return -1;
 }
 
 int tokenize(struct token_list* tk_list, char* file_buffer)
@@ -221,6 +241,21 @@ int tokenize(struct token_list* tk_list, char* file_buffer)
 				status = next_status(status, file_buffer[i]);
             }
             break;
+		case STATUS_PRAGMA:
+			if (!IS_LETTER(file_buffer[i])) {
+				int type;
+				token_end = i;
+				type = pragma_type(file_buffer + token_begin, token_end - token_begin);
+				if (type < 0) {
+					error("invalid pragma ad line %d\n", line_num);
+					return -4;
+				}
+				tok_node = create_token(type, file_buffer + token_begin, token_end - token_begin);
+				token_append(tk_list, tok_node);
+				token_begin = i;
+				status = next_status(status, file_buffer[i]);
+			}
+			break;
         case STATUS_PUNCTUATION:
             token_end = i;
             tok_node = create_token(file_buffer[token_begin], file_buffer + token_begin, token_end - token_begin);
@@ -232,7 +267,7 @@ int tokenize(struct token_list* tk_list, char* file_buffer)
             if (!IS_NUMBER(file_buffer[i])) {
                 token_end = i;
                 if (!check_number(file_buffer + token_begin, token_end - token_begin)) {
-                    error("invalid number format at line %d, column %d.\n", line_num, i + 1);
+                    error("invalid number format at line %d\n", line_num);
                     return -2;
                 }
                 tok_node = create_token(TOKEN_NUMBER, file_buffer + token_begin, token_end - token_begin);
@@ -249,6 +284,10 @@ int tokenize(struct token_list* tk_list, char* file_buffer)
             break;
         case STATUS_COMMENTS:
             //once status is in comments, it will always be in comments
+			if ('\n' == file_buffer[i]) {
+				token_begin = i;
+				status = next_status(status, file_buffer[i]);
+			}
             break;
         case STATUS_INVALID:
             token_begin = i;
@@ -261,88 +300,12 @@ int tokenize(struct token_list* tk_list, char* file_buffer)
         }
         if (0 == file_buffer[i])
             break;
-        else if ('\n' == file_buffer[i])
-            ++line_num;
+		else if ('\n' == file_buffer[i])
+			++line_num;
     }
 
     return 0;
 }
-
-/*
-int tokenize(struct token_list* tok_list, char* line, int line_num)
-{
-    size_t i, len;
-
-    len = trim(line);
-    str_toupper(line);
-    for (i = 0; i < len;) {
-        struct token_node* tok_node;
-        if (IS_NUMBER(line[i])) {
-            size_t len_tok = 0;
-            if (0 != check_number(line + i, &len_tok)) {
-                error("invalid number format at line %d, column %d.\n", line_num, i + 1);
-                return -2;
-            }
-
-            tok_node = create_token(TOKEN_NUMBER, line + i, len_tok);
-            token_append(tok_list, tok_node);
-            i += len_tok;
-        } else if (IS_LETTER(line[i])) {
-            size_t begin, end;
-            for (begin = i; i < len && !IS_BLANK(line[i]); i++) {
-				if (!IS_LETTER(line[i]) && !IS_DIGIT(line[i]))
-					goto ERROR;
-			}
-            end = i;
-            tok_node = create_token(TOKEN_LABEL, line + begin, end - begin);
-            if (1 == tok_node->len) {
-                if ('A' == tok_node->liter[0])
-                    tok_node->type = TOKEN_SYMB_A;
-                else if ('X' == tok_node->liter[0])
-                    tok_node->type = TOKEN_SYMB_X;
-                else if ('Y' == tok_node->liter[0])
-                    tok_node->type = TOKEN_SYMB_Y;
-            } else if (3 == tok_node->len && is_inst(tok_node->liter))
-                tok_node->type = TOKEN_INST;
-            token_append(tok_list, tok_node);
-        } else if (';' == line[i]) {
-            i = len;
-        } else if ('.' == line[i]) {
-            size_t begin, end;
-            int token_type = TOKEN_NULL;
-            ++i;
-            for (begin = i; i < len && IS_LETTER(line[i]); i++) {}
-            end = i;
-            if (3 != end - begin && 4 != end - begin)
-                goto ERROR;
-            if (0 == strncmp("END", line + begin, 3))
-                token_type = TOKEN_PRAGMA_END;
-            else if (0 == strncmp("BYTE", line + begin, 4))
-                token_type = TOKEN_PRAGMA_BYTE;
-            else if (0 == strncmp("WORD", line + begin, 4))
-                token_type = TOKEN_PRAGMA_WORD;
-            else 
-                goto ERROR;
-            tok_node = create_token(token_type, line + begin, end - begin);
-            token_append(tok_list, tok_node);
-        } else if (is_valid_char(line[i])) {
-            tok_node = create_token(line[i], line + i, 1);
-            token_append(tok_list, tok_node);
-            ++i;
-		} else if (IS_BLANK(line[i])) {
-			++i;
-		} else {
-            error("invalid character '%d' at line %d, column %d.\n", 
-                line[i], line_num, i + 1);
-            return -1;
-        }
-    }
-    return 0;
-ERROR:
-    error("invalid format at line %d\n", line_num);
-    return -3;
-}
-*/
 
 void str_toupper(char* str)
 {

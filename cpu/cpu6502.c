@@ -56,7 +56,6 @@ struct cpu cpu6502 = {
 	.pc = 0x00,
 #endif
 	.cycle_count = 0x0000,
-	.is = is,
 };
 
 
@@ -72,7 +71,7 @@ static inline void adc(struct cpu* cpu, word_t m)
             t += 6;
         SET_BIT(&cpu->psw, PSW_N, BIT(t, 7));
         
-        //the two operands have same sign, and the sum gets a different sign.
+        //the two operand s have same sign, and the sum gets a different sign.
         SET_BIT(&cpu->psw, PSW_V, !((cpu->acc ^ m) & 0x80) && ((cpu->acc ^ t) & 0x80) );
         if(t > 0x99)
             t += 96;    //becareful
@@ -313,7 +312,7 @@ static inline void sbc(struct cpu* cpu, word_t m)
     SET_BIT(&cpu->psw, PSW_N, BIT(t, 7));
     SET_BIT(&cpu->psw, PSW_Z, 0 == (word_t)t);
 
-    //the two operands have different sign and the sign of sum if diff to acc
+    //the two operand s have different sign and the sign of sum if diff to acc
     SET_BIT(&cpu->psw, PSW_V,  ((cpu->acc ^ t) & 0x80) && ((cpu->acc ^ m) & 0x80) );
     if (BIT(cpu->psw, PSW_D)) {
         if (((cpu->acc & 0x0F) - !BIT(cpu->psw, PSW_C)) < (m & 0x0F))
@@ -368,92 +367,93 @@ int cpu6502_run(struct cpu* cpu)
 
     for (; ;) {
         //uint8_t i;
-        uint16_t inst = 0;
+        uint16_t operand = 0;
         byte data;
         addr_t addr;
-
+		const struct inst* inst;
 		//fetch
         byte op_code = read_byte(cpu->pc);
-		ASSERT(1 <= cpu->is[op_code].len || cpu->is[op_code].len <= 3);
-		if (2 == cpu->is[op_code].len)
-			inst = read_byte(cpu->pc + 1);
-        else if (3 == cpu->is[op_code].len)
-            inst = read_2bytes(cpu->pc + 1);
+		inst = get_inst(op_code);
+		ASSERT(1 <= inst->len || inst->len <= 3);
+		if (2 == inst->len)
+			operand = read_byte(cpu->pc + 1);
+        else if (3 == inst->len)
+            operand = read_2bytes(cpu->pc + 1);
 		//move to next instrcution
-        cpu->pc += cpu->is[op_code].len;
-		cpu->cycle_count += cpu->is[op_code].cycle;
+        cpu->pc += inst->len;
+		cpu->cycle_count += inst->cycle;
         //printf("XR: %x  YR: %x\n", cpu->xr, cpu->yr);
         
 		//execute
         switch (op_code) {
         /******ADC******/
         case ADC_IMM:
-            data = inst & MASK(byte);
+            data = operand & MASK(byte);
             adc(cpu, data);
             break;
         case ADC_ZERO:
-            data = read_byte(inst & MASK(byte));
+            data = read_byte(operand & MASK(byte));
             adc(cpu, data);
             break;
         case ADC_ZERO_X:
-            data = read_byte((inst & MASK(byte)) + cpu->xr);
+            data = read_byte((operand & MASK(byte)) + cpu->xr);
             adc(cpu, data);
             break;
         case ADC_ABS:
-            data = read_byte(inst & MASK(addr_t));
+            data = read_byte(operand & MASK(addr_t));
             adc(cpu, data);
             break;
         case ADC_ABS_X:
-            data = read_byte((inst & MASK(addr_t)) + cpu->xr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->xr);
             adc(cpu, data);
             break;
         case ADC_ABS_Y:
-            data = read_byte((inst & MASK(addr_t)) + cpu->yr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->yr);
             adc(cpu, data);
             break;
         case ADC_IND_X:
-            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((operand & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             adc(cpu, data);
             break;
         case ADC_IND_Y:
-            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(operand & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             adc(cpu, data);
             break;
 
         /******AND******/
         case AND_IMM:
-            data = inst & MASK(byte);
+            data = operand & MASK(byte);
             and(cpu, data);
             break;
         case AND_ZERO:
-            data = read_byte(inst & MASK(byte));
+            data = read_byte(operand & MASK(byte));
             and(cpu, data);
             break;
         case AND_ZERO_X:
-            data = read_byte((inst & MASK(byte)) + cpu->xr);
+            data = read_byte((operand & MASK(byte)) + cpu->xr);
             and(cpu, data);
             break;
         case AND_ABS:
-            data = read_byte(inst & MASK(addr_t));
+            data = read_byte(operand & MASK(addr_t));
             and(cpu, data);
             break;
         case AND_ABS_X:
-            data = read_byte((inst & MASK(addr_t)) + cpu->xr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->xr);
             and(cpu, data);
             break;
         case AND_ABS_Y:
-            data = read_byte((inst & MASK(addr_t)) + cpu->yr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->yr);
             and(cpu, data);
             break;
         case AND_IND_X:
-            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((operand & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             and(cpu, data);
             break;
         case AND_IND_Y:
-            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(operand & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             and(cpu, data);
             break;
@@ -463,69 +463,69 @@ int cpu6502_run(struct cpu* cpu)
             cpu->acc = asl(cpu, cpu->acc);
             break;
         case ASL_ZERO:
-            addr = inst & MASK(byte);
+            addr = operand & MASK(byte);
             data = asl(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case ASL_ZERO_X:
-            addr = (inst & MASK(byte)) + cpu->xr;
+            addr = (operand & MASK(byte)) + cpu->xr;
             data = asl(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case ASL_ABS:
-            addr = inst & MASK(addr_t);
+            addr = operand & MASK(addr_t);
             data = asl(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case ASL_ABS_X:
-            addr = (inst & MASK(addr_t)) + cpu->xr;
+            addr = (operand & MASK(addr_t)) + cpu->xr;
             data = asl(cpu, read_byte(addr));
             write_byte(addr, data);
             break;    
 
         /******BCC******/
         case BCC:
-            data = inst & MASK(word_t);
+            data = operand & MASK(word_t);
             branch(cpu, PSW_C, 0, data);
             break;
 
         /******BCS******/
         case BCS:
-            data = inst & MASK(word_t);
+            data = operand & MASK(word_t);
             branch(cpu, PSW_C, 1, data);
             break;
 
         /******BEQ******/
         case BEQ:
-            data = inst & MASK(word_t);
+            data = operand & MASK(word_t);
             branch(cpu, PSW_Z, 1, data);
             break;
 
         /******BIT******/
         case BIT_ZERO:
-            data = read_byte(inst & MASK(word_t));
+            data = read_byte(operand & MASK(word_t));
             bit(cpu, data);
             break;
         case BIT_ABS:
-            data = read_byte(inst & MASK(addr_t));
+            data = read_byte(operand & MASK(addr_t));
             bit(cpu, data);
             break;
 
         /******BMI******/
         case BMI:
-            data = inst & MASK(word_t);
+            data = operand & MASK(word_t);
             branch(cpu, PSW_N, 1, data);
             break;
 
         /******BNE******/
         case BNE:
-            data = inst & MASK(word_t);
+            data = operand & MASK(word_t);
             branch(cpu, PSW_Z, 0, data);
             break;
 
         /******BPL******/
         case BPL:
-            data = inst & MASK(word_t);
+            data = operand & MASK(word_t);
             branch(cpu, PSW_N, 0, data);
             break;
 
@@ -538,13 +538,13 @@ int cpu6502_run(struct cpu* cpu)
 
         /******BVC******/
         case BVC:
-            data = inst & MASK(word_t);
+            data = operand & MASK(word_t);
             branch(cpu, PSW_V, 0x00, data);
             break;
 
         /******BVS******/
         case BVS:
-            data = inst & MASK(word_t);
+            data = operand & MASK(word_t);
             branch(cpu, PSW_V, 0x01, data);
             break;
 
@@ -564,7 +564,7 @@ int cpu6502_run(struct cpu* cpu)
 
         /******CMP******/
         case CMP_IMM:
-            data = inst & MASK(byte);
+            data = operand & MASK(byte);
 			cmp(cpu, data);
 #ifdef DEBUG
 			{
@@ -577,82 +577,82 @@ int cpu6502_run(struct cpu* cpu)
 #endif
             break;
         case CMP_ZERO:
-            data = read_byte(inst & MASK(byte));
+            data = read_byte(operand & MASK(byte));
             cmp(cpu, data);
             break;
         case CMP_ZERO_X:
-            data = read_byte((inst & MASK(byte)) + cpu->xr);
+            data = read_byte((operand & MASK(byte)) + cpu->xr);
             cmp(cpu, data);
             break;
         case CMP_ABS:
-            data = read_byte(inst & MASK(addr_t));
+            data = read_byte(operand & MASK(addr_t));
             cmp(cpu, data);
             break;
         case CMP_ABS_X:
-            data = read_byte((inst & MASK(addr_t)) + cpu->xr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->xr);
             cmp(cpu, data);
             break;
         case CMP_ABS_Y:
-            data = read_byte((inst & MASK(addr_t)) + cpu->yr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->yr);
             cmp(cpu, data);
             break;
         case CMP_IND_X:
-            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((operand & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             cmp(cpu, data);
             break;
         case CMP_IND_Y:
-            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(operand & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             cmp(cpu, data);
             break;
 
         /******CPX******/
         case CPX_IMM:
-            data = inst & MASK(byte);
+            data = operand & MASK(byte);
             cpx(cpu, data);
             break;
         case CPX_ZERO:
-            data = read_byte(inst & MASK(byte));
+            data = read_byte(operand & MASK(byte));
             cpx(cpu, data);
             break;
         case CPX_ABS:
-            data = read_byte(inst & MASK(addr_t));
+            data = read_byte(operand & MASK(addr_t));
             cpx(cpu, data);
             break;
 
         /******CPY******/
         case CPY_IMM:
-            data = inst & MASK(byte);
+            data = operand & MASK(byte);
             cpx(cpu, data);
             break;
         case CPY_ZERO:
-            data = read_byte(inst & MASK(byte));
+            data = read_byte(operand & MASK(byte));
             cpx(cpu, data);
             break;
         case CPY_ABS:
-            data = read_byte(inst & MASK(addr_t));
+            data = read_byte(operand & MASK(addr_t));
             cpx(cpu, data);
             break;
 
         /******DEC******/
         case DEC_ZERO:
-            addr = inst & MASK(byte);
+            addr = operand & MASK(byte);
             data = dec(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case DEC_ZERO_X:
-            addr = (inst & MASK(byte)) + cpu->xr;
+            addr = (operand & MASK(byte)) + cpu->xr;
             data = dec(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case DEC_ABS:
-            addr = inst & MASK(addr_t);
+            addr = operand & MASK(addr_t);
             data = dec(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case DEC_ABS_X:
-            addr = (inst & MASK(addr_t)) + cpu->xr;
+            addr = (operand & MASK(addr_t)) + cpu->xr;
             data = dec(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
@@ -669,58 +669,58 @@ int cpu6502_run(struct cpu* cpu)
 
         /******EOR******/
         case EOR_IMM:
-            data = inst & MASK(byte);
+            data = operand & MASK(byte);
             eor(cpu, data);
             break;
         case EOR_ZERO:
-            data = read_byte(inst & MASK(byte));
+            data = read_byte(operand & MASK(byte));
             eor(cpu, data);
             break;
         case EOR_ZERO_X:
-            data = read_byte((inst & MASK(byte)) + cpu->xr);
+            data = read_byte((operand & MASK(byte)) + cpu->xr);
             eor(cpu, data);
             break;
         case EOR_ABS:
-            data = read_byte(inst & MASK(addr_t));
+            data = read_byte(operand & MASK(addr_t));
             eor(cpu, data);
             break;
         case EOR_ABS_X:
-            data = read_byte((inst & MASK(addr_t)) + cpu->xr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->xr);
             eor(cpu, data);
             break;
         case EOR_ABS_Y:
-            data = read_byte((inst & MASK(addr_t)) + cpu->yr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->yr);
             eor(cpu, data);
             break;
         case EOR_IND_X:
-            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((operand & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             eor(cpu, data);
             break;
         case EOR_IND_Y:
-            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(operand & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             eor(cpu, data);
             break;
 
         /******INC******/
         case INC_ZERO:
-            addr = inst & MASK(byte);
+            addr = operand & MASK(byte);
             data = inc(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case INC_ZERO_X:
-            addr = (inst & MASK(byte)) + cpu->xr;
+            addr = (operand & MASK(byte)) + cpu->xr;
             data = inc(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case INC_ABS:
-            addr = inst & MASK(addr_t);
+            addr = operand & MASK(addr_t);
             data = inc(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case INC_ABS_X:
-            addr = (inst & MASK(addr_t)) + cpu->xr;
+            addr = (operand & MASK(addr_t)) + cpu->xr;
             data = inc(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
@@ -737,97 +737,97 @@ int cpu6502_run(struct cpu* cpu)
 
         /******JMP******/
         case JMP_ABS:
-            addr = inst & MASK(addr_t);
+            addr = operand & MASK(addr_t);
             cpu->pc = addr;
             break;
         case JMP_IND:
-            addr = read_2bytes(inst & MASK(addr_t));
+            addr = read_2bytes(operand & MASK(addr_t));
             cpu->pc = addr;
             break;
 
         /******JSR******/
         case JSR:
-            addr = inst & MASK(addr_t);
+            addr = operand & MASK(addr_t);
             jsr(cpu, addr);
             break;
 
         /******LDA******/
         case LDA_IMM:
-            data = inst & MASK(byte);
+            data = operand & MASK(byte);
             lda(cpu, data);
             break;
         case LDA_ZERO:
-            data = read_byte(inst & MASK(byte));
+            data = read_byte(operand & MASK(byte));
             lda(cpu, data);
             break;
         case LDA_ZERO_X:
-            data = read_byte((inst & MASK(byte)) + cpu->xr);
+            data = read_byte((operand & MASK(byte)) + cpu->xr);
             lda(cpu, data);
             break;
         case LDA_ABS:
-            data = read_byte(inst & MASK(addr_t));
+            data = read_byte(operand & MASK(addr_t));
             lda(cpu, data);
             break;
         case LDA_ABS_X:
-            data = read_byte((inst & MASK(addr_t)) + cpu->xr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->xr);
             lda(cpu, data);
             break;
         case LDA_ABS_Y:
-            data = read_byte((inst & MASK(addr_t)) + cpu->yr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->yr);
             lda(cpu, data);
             break;
         case LDA_IND_X:
-            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((operand & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             lda(cpu, data);
             break;
         case LDA_IND_Y:
-            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(operand & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             lda(cpu, data);
             break; 
 
         /******LDX******/
         case LDX_IMM:
-            data = inst & MASK(byte);
+            data = operand & MASK(byte);
             ldx(cpu, data);
             break;
         case LDX_ZERO:
-            data = read_byte(inst & MASK(byte));
+            data = read_byte(operand & MASK(byte));
             ldx(cpu, data);
             break;
         case LDX_ZERO_Y:
-            data = read_byte((inst & MASK(byte)) + cpu->yr);
+            data = read_byte((operand & MASK(byte)) + cpu->yr);
             lda(cpu, data);
             break;
         case LDX_ABS:
-            data = read_byte(inst & MASK(addr_t));
+            data = read_byte(operand & MASK(addr_t));
             ldx(cpu, data);
             break;
         case LDX_ABS_Y:
-            data = read_byte((inst & MASK(addr_t)) + cpu->yr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->yr);
             ldx(cpu, data);
             break;
 
         /******LDY******/
         case LDY_IMM:
-            data = inst & MASK(byte);
+            data = operand & MASK(byte);
             ldy(cpu, data);
             break;
         case LDY_ZERO:
-            data = read_byte(inst & MASK(byte));
+            data = read_byte(operand & MASK(byte));
             ldy(cpu, data);
             break;
         case LDY_ZERO_X:
-            data = read_byte((inst & MASK(byte)) + cpu->xr);
+            data = read_byte((operand & MASK(byte)) + cpu->xr);
             ldy(cpu, data);
             break;
         case LDY_ABS:
-            data = read_byte(inst & MASK(addr_t));
+            data = read_byte(operand & MASK(addr_t));
             ldy(cpu, data);
             break;
         case LDY_ABS_X:
-            data = read_byte((inst & MASK(addr_t)) + cpu->xr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->xr);
             ldy(cpu, data);
             break;
 
@@ -836,22 +836,22 @@ int cpu6502_run(struct cpu* cpu)
             cpu->acc = lsr(cpu, cpu->acc);
             break;
         case LSR_ZERO:
-            addr = inst & MASK(byte);
+            addr = operand & MASK(byte);
             data = lsr(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case LSR_ZERO_X:
-            addr = (inst & MASK(byte)) + cpu->xr;
+            addr = (operand & MASK(byte)) + cpu->xr;
             data = lsr(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case LSR_ABS:
-            addr = inst & MASK(addr_t);
+            addr = operand & MASK(addr_t);
             data = lsr(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case LSR_ABS_X:
-            addr = (inst & MASK(addr_t)) + cpu->xr;
+            addr = (operand & MASK(addr_t)) + cpu->xr;
             data = lsr(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
@@ -862,36 +862,36 @@ int cpu6502_run(struct cpu* cpu)
 
         /******ORA******/
         case ORA_IMM:
-            data = inst & MASK(byte);
+            data = operand & MASK(byte);
             ora(cpu, data);
             break;
         case ORA_ZERO:
-            data = read_byte(inst & MASK(byte));
+            data = read_byte(operand & MASK(byte));
             ora(cpu, data);
             break;
         case ORA_ZERO_X:
-            data = read_byte((inst & MASK(byte)) + cpu->xr);
+            data = read_byte((operand & MASK(byte)) + cpu->xr);
             ora(cpu, data);
             break;
         case ORA_ABS:
-            data = read_byte(inst & MASK(addr_t));
+            data = read_byte(operand & MASK(addr_t));
             ora(cpu, data);
             break;
         case ORA_ABS_X:
-            data = read_byte((inst & MASK(addr_t)) + cpu->xr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->xr);
             ora(cpu, data);
             break;
         case ORA_ABS_Y:
-            data = read_byte((inst & MASK(addr_t)) + cpu->yr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->yr);
             ora(cpu, data);
             break;
         case ORA_IND_X:
-            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((operand & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             ora(cpu, data);
             break;
         case ORA_IND_Y:
-            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(operand & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             ora(cpu, data);
             break;
@@ -921,22 +921,22 @@ int cpu6502_run(struct cpu* cpu)
             cpu->acc = rol(cpu, cpu->acc);
             break;
         case ROL_ZERO:
-            addr = inst & MASK(byte);
+            addr = operand & MASK(byte);
             data = rol(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case ROL_ZERO_X:
-            addr = (inst & MASK(byte)) + cpu->xr;
+            addr = (operand & MASK(byte)) + cpu->xr;
             data = rol(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case ROL_ABS:
-            addr = inst & MASK(addr_t);
+            addr = operand & MASK(addr_t);
             data = rol(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case ROL_ABS_X:
-            addr = (inst & MASK(addr_t)) + cpu->xr;
+            addr = (operand & MASK(addr_t)) + cpu->xr;
             data = rol(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
@@ -946,22 +946,22 @@ int cpu6502_run(struct cpu* cpu)
             cpu->acc = ror(cpu, cpu->acc);
             break;
         case ROR_ZERO:
-            addr = inst & MASK(byte);
+            addr = operand & MASK(byte);
             data = ror(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case ROR_ZERO_X:
-            addr = (inst & MASK(byte)) + cpu->xr;
+            addr = (operand & MASK(byte)) + cpu->xr;
             data = ror(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case ROR_ABS:
-            addr = inst & MASK(addr_t);
+            addr = operand & MASK(addr_t);
             data = ror(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
         case ROR_ABS_X:
-            addr = (inst & MASK(addr_t)) + cpu->xr;
+            addr = (operand & MASK(addr_t)) + cpu->xr;
             data = ror(cpu, read_byte(addr));
             write_byte(addr, data);
             break;
@@ -978,36 +978,36 @@ int cpu6502_run(struct cpu* cpu)
 
         /******SBC******/
         case SBC_IMM:
-            data = inst & MASK(byte);
+            data = operand & MASK(byte);
             sbc(cpu, data);
             break;
         case SBC_ZERO:
-            data = read_byte(inst & MASK(byte));
+            data = read_byte(operand & MASK(byte));
             sbc(cpu, data);
             break;
         case SBC_ZERO_X:
-            data = read_byte((inst & MASK(byte)) + cpu->xr);
+            data = read_byte((operand & MASK(byte)) + cpu->xr);
             sbc(cpu, data);
             break;
         case SBC_ABS:
-            data = read_byte(inst & MASK(addr_t));
+            data = read_byte(operand & MASK(addr_t));
             sbc(cpu, data);
             break;
         case SBC_ABS_X:
-            data = read_byte((inst & MASK(addr_t)) + cpu->xr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->xr);
             sbc(cpu, data);
             break;
         case SBC_ABS_Y:
-            data = read_byte((inst & MASK(addr_t)) + cpu->yr);
+            data = read_byte((operand & MASK(addr_t)) + cpu->yr);
             sbc(cpu, data);
             break;
         case SBC_IND_X:
-            addr = read_2bytes((inst & MASK(byte)) + cpu->xr);
+            addr = read_2bytes((operand & MASK(byte)) + cpu->xr);
             data = read_byte(addr);
             sbc(cpu, data);
             break;
         case SBC_IND_Y:
-            addr = read_2bytes(inst & MASK(byte)) + cpu->yr;
+            addr = read_2bytes(operand & MASK(byte)) + cpu->yr;
             data = read_byte(addr);
             sbc(cpu, data);
             break;
@@ -1029,61 +1029,61 @@ int cpu6502_run(struct cpu* cpu)
 
         /******STA******/
         case STA_ZERO:
-            addr = inst & MASK(byte);
+            addr = operand & MASK(byte);
             write_byte(addr, cpu->acc);
             break;
         case STA_ZERO_X:
-            addr = (inst & MASK(byte)) + cpu->xr;
+            addr = (operand & MASK(byte)) + cpu->xr;
             write_byte(addr, cpu->acc);
             break;
         case STA_ABS:
-            addr = inst & MASK(addr_t);
+            addr = operand & MASK(addr_t);
             write_byte(addr, cpu->acc);
             break;
         case STA_ABS_X:
-            addr = (inst & MASK(addr_t)) + cpu->xr;
+            addr = (operand & MASK(addr_t)) + cpu->xr;
             write_byte(addr, cpu->acc);
             break;
         case STA_ABS_Y:
-            addr = (inst & MASK(addr_t)) + cpu->yr;
+            addr = (operand & MASK(addr_t)) + cpu->yr;
             write_byte(addr, cpu->acc);
             break;
         case STA_IND_X:
-            addr = (inst & MASK(byte)) + cpu->xr;
+            addr = (operand & MASK(byte)) + cpu->xr;
             addr = read_2bytes(addr);
             write_byte(addr, cpu->acc);
             break;
         case STA_IND_Y:
-            addr = inst & MASK(byte);
+            addr = operand & MASK(byte);
             addr = read_2bytes(addr) + cpu->yr;
             write_byte(addr, cpu->acc);
             break; 
 
         /******STX******/
         case STX_ZERO:
-            addr = inst & MASK(byte);
+            addr = operand & MASK(byte);
             write_byte(addr, cpu->xr);
             break;
         case STX_ZERO_Y:
-            addr = (inst & MASK(byte)) + cpu->yr;
+            addr = (operand & MASK(byte)) + cpu->yr;
             write_byte(addr, cpu->xr);
             break;
         case STX_ABS:
-            addr = inst & MASK(addr_t);
+            addr = operand & MASK(addr_t);
             write_byte(addr, cpu->xr);
             break;
 
         /******STY******/
         case STY_ZERO:
-            addr = inst & MASK(byte);
+            addr = operand & MASK(byte);
             write_byte(addr, cpu->yr);
             break;
         case STY_ZERO_X:
-            addr = (inst & MASK(byte)) + cpu->xr;
+            addr = (operand & MASK(byte)) + cpu->xr;
             write_byte(addr, cpu->yr);
             break;
         case STY_ABS:
-            addr = inst & MASK(addr_t);
+            addr = operand & MASK(addr_t);
             write_byte(addr, cpu->yr);
             break;
 

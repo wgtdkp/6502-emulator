@@ -39,7 +39,7 @@ int main(void)
 int main(int argc, char* argv[])
 {
 #endif
-    if (argc < 2) {
+	if (argc < 2) {
         usage();
         return -1;
     }

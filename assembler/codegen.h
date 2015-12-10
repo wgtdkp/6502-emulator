@@ -4,6 +4,6 @@
 #include "type.h"
 #include "token.h"
 
-uint8_t gen_code(byte code[3], const struct tk_inst* inst);
+uint8_t gen_code(byte code[3], const struct token_inst* inst);
 
 #endif

@@ -16,11 +16,11 @@
 #define TOKEN_PRAGMA_BYTE   (136)
 #define TOKEN_PRAGMA_WORD   (137)
 
-struct tk_symb {
+struct token_symb {
     addr_t addr;
 };
 
-struct tk_inst {
+struct token_inst {
     byte op_code;
     union {
         uint16_t operand;
@@ -36,13 +36,12 @@ struct token_node {
 	struct {
 		int type;
 		size_t len;
-		char* liter;
+		const char* liter;
 	};
     struct token_node* next;
 };
 
 struct token_list {
-    size_t size;
     struct token_node* tail;
     struct token_node* head;
 };
@@ -53,6 +52,7 @@ void destroy_token(struct token_node** head);
 void token_append(struct token_list* tok_list, struct token_node* tok_node);
 int tokenize(struct token_list* tk_list, char* file_buffer);
 void str_toupper(char* str);
-struct token_node* token_offset(struct token_node* head, size_t n);
+const struct token_node* token_offset(const struct token_node* head, size_t n);
+void print_token(const struct token_node* tk);
 
 #endif
