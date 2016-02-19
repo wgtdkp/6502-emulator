@@ -79,6 +79,7 @@ static void __destroy_symb_tb(struct symb_node* root)
 void destroy_symb_tb(void)
 {
 	__destroy_symb_tb(symb_tb);
+	symb_tb = NULL;
 }
 
 static void print_symb(const struct symb_node* symb)
