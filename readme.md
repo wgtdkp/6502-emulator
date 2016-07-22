@@ -1,2 +1,2 @@
 # 6502-emulator
-a emulator of 6502 MCU, including a assembler
+a emulator of 6502 MCU, including an assembler
