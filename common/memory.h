@@ -49,13 +49,13 @@
 
 
 #if ADDR_WIDTH == 8
-	typedef uint8_t addr_t;
+typedef uint8_t addr_t;
 #elif ADDR_WIDTH == 16
-	typedef uint16_t addr_t;
+typedef uint16_t addr_t;
 #elif ADDR_WIDTH == 32
-	typedef uint32_t addr_t;
+typedef uint32_t addr_t;
 #elif ADDR_WIDTH == 64
-	typedef uint64_t addr_t;
+typedef uint64_t addr_t;
 #endif
 
 uint16_t read_2bytes(addr_t addr);
@@ -65,7 +65,7 @@ void write_2bytes(addr_t addr, uint16_t data);
 
 static inline addr_t addr(byte high, byte low)
 {
-	return ((addr_t)high << 8) | low;
+  return ((addr_t)high << 8) | low;
 }
 
 bool load_mem(const char* filename);

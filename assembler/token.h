@@ -17,34 +17,34 @@
 #define TOKEN_PRAGMA_WORD   (137)
 
 struct token_symb {
-    addr_t addr;
+  addr_t addr;
 };
 
 struct token_inst {
-    byte op_code;
-    union {
-        uint16_t operand;
-        struct {
-			byte lo;
-            byte hi;
-        };
-        addr_t addr;
+  byte op_code;
+  union {
+    uint16_t operand;
+    struct {
+      byte lo;
+      byte hi;
     };
+    addr_t addr;
+  };
 };
 
 struct token_node {
-	struct {
-		int type;
-		size_t len;
-		const char* liter;
-		uint16_t data;	//only used by the number token
-	};
-    struct token_node* next;
+  struct {
+    int type;
+    size_t len;
+    const char* liter;
+    uint16_t data;	//only used by the number token
+  };
+  struct token_node* next;
 };
 
 struct token_list {
-    struct token_node* tail;
-    struct token_node* head;
+  struct token_node* tail;
+  struct token_node* head;
 };
 
 int trim(char* str);

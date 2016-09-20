@@ -32,6 +32,6 @@ int parse(const char* output, const char* input);
 int find_inst(const char* liter);
 static inline int is_inst(const char* liter)
 {
-	return -1 != find_inst(liter);
+  return -1 != find_inst(liter);
 }
 #endif

@@ -280,5 +280,4 @@ struct inst {
 //extern const struct inst is[IS_SIZE];
 const struct inst* get_inst(uint8_t op_code);
 
-
 #endif
