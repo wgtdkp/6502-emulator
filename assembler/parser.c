@@ -204,13 +204,15 @@ static bool match(struct token_list* tk_list, ...)
   type = va_arg(args, uint32_t);
   struct token_node* p;
   for (p = tk_list->head; p != tk_list->tail; p = p->next) {
-  if (TOKEN_LABEL == p->type && TOKEN_NUMBER == type) {//treats equal
-    struct symb_node* label;
-    label = symb_find(p->liter, p->len);
-    if (NULL != label)
-      p->data = label->data;
-  } else if (0 == type || type != p->type)
-    return false;
+    if (TOKEN_LABEL == p->type && TOKEN_NUMBER == type) {//treats equal
+      struct symb_node* label;
+      label = symb_find(p->liter, p->len);
+      if (NULL != label) {
+        p->data = label->data;
+      }
+    } else if (0 == type || type != p->type) {
+      return false;
+    }
     type = va_arg(args, uint32_t);
   }
   return (0 == type && tk_list->tail == p);   //both of them are NULL(0)
@@ -249,8 +251,9 @@ static int build_symb_tb(const struct token_list* tk_list)
       //return gen_inst(inst, head->next, line_num);
     }
     ++line_num;
-    while (NULL != tail && '\n' == tail->type)
+    while (NULL != tail && '\n' == tail->type) {
       tail = tail->next;
+    }
     head = tail;
   }
   print_symb_tb();
@@ -268,7 +271,6 @@ static inline bool is_branch(struct token_node* inst)
 
 static int gen_inst(struct token_inst* inst, struct token_list* tk_list, size_t line_num)
 {
-  struct symb_node* symb = NULL;
   if (!tk_list || !tk_list->head)
     return 0; 
 

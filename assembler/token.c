@@ -73,12 +73,11 @@ struct token_node* create_token(int type, const char* liter, size_t len)
 
 void destroy_token(struct token_node** head)
 {
-  struct token_node* p;
-  struct token_node odd;
-  odd.next = *head;
-  for (p = odd.next; NULL != p; p = nextp) {
+  struct token_node* p = *head;
+  while (p) {
     struct token_node* nextp = p->next;
     free(p);
+    p = nextp;
   }
   *head = NULL;
 }
@@ -237,7 +236,6 @@ static int pragma_type(const char* liter, size_t len)
 int tokenize(struct token_list* tk_list, char* file_buffer)
 {
   enum Status status;
-   line_num;
   size_t token_begin, token_end;
   token_begin = 0, token_end  = 0;
   status = STATUS_INVALID;
