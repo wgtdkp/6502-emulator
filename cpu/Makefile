@@ -5,7 +5,7 @@ TARGET = fc
 
 OBJS = $(SRCS:.c=.o)
 
-CC = gcc
+CC = gcc -std=c11
 
 $(TARGET) : $(OBJS)
 	$(CC) -o $@ $^ -lm
