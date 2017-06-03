@@ -346,7 +346,7 @@ static int gen_inst(struct token_inst* inst, struct token_list* tk_list, size_t 
     //TODO: insert into symbol table
     symb_insert(tk_list->head->liter, tk_list->head->len, pc);
     inst->op_code = NOT_INST;
-  }else if (TOKEN_LABEL == tk_list->head->type) {
+  } else if (TOKEN_LABEL == tk_list->head->type) {
     //TODO: insert into symbol table
     //TODO: check if any instruction followed
     symb_insert(tk_list->head->liter, tk_list->head->len, pc);
